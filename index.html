@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iPhone 香港發售價一覽 (2008–2026)</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "SF Pro Text", "Helvetica Neue", "PingFang HK",
+                 "Microsoft JhengHei", sans-serif;
+    margin: 0; padding: 16px 12px 40px; background: #fff; color: #1d1d1f;
+    max-width: 860px; margin-left: auto; margin-right: auto;
+  }
+  h1 { font-size: 22px; margin: 4px 0 2px; }
+  .sub { font-size: 13px; color: #6e6e73; margin: 0 0 12px; }
+  .controls { display: flex; gap: 8px; margin-bottom: 6px; }
+  .controls button {
+    flex: 1; padding: 10px 0; font-size: 15px; border-radius: 10px;
+    border: 1px solid #d2d2d7; background: #f5f5f7; color: #1d1d1f;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .controls button.active { background: #0071e3; border-color: #0071e3; color: #fff; font-weight: 600; }
+  #chart { width: 100%; }
+  #fallback { display: none; padding: 24px; text-align: center; color: #6e6e73; font-size: 14px; }
+  .notes { font-size: 12px; color: #6e6e73; line-height: 1.7; margin-top: 14px; }
+  .notes b { color: #424245; }
+</style>
+</head>
+<body>
+<h1>iPhone 香港發售價一覽</h1>
+<p class="sub">2008 – 2026 · 官方 SIM-free 淨機價（最低容量）· 港元 HK$</p>
+<div class="controls">
+  <button id="btnYear" class="active">按年份</button>
+  <button id="btnFamily">按系列</button>
+</div>
+<div id="chart"></div>
+<div id="fallback">圖表載入失敗，請檢查網絡連線後重新整理（需載入 ECharts CDN）。</div>
+<div class="notes">
+  <b>說明：</b><br>
+  · 價格為香港官方發售價（SIM-free 淨機、最低容量版本），上台合約價及之後的官方調價不計。<br>
+  · 同代 Pro / Pro Max 相鄰排列；「按系列」可將全部 Pro / Pro Max 各自歸為一組，方便跨代比較。<br>
+  · iPhone 2G 從未在港正式發售；摺疊屏iPhone Duo 暫未公佈香港官方定價，故未收錄。<br>
+  · 資料來源：Apple 香港 newsroom 及當年香港傳媒紀錄（unwire / ePrice / DCFever / MobileMagazine 等）。
+</div>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<script>
+// d = 香港發售日期, price = 官方 SIM-free 最低容量發售價 (HK$)
+const MODELS = [
+  { d:'2008-07-11', short:'3G',         name:'iPhone 3G',            family:'standard', storage:'8GB',   price:5400  },
+  { d:'2009-07-10', short:'3GS',        name:'iPhone 3GS',           family:'standard', storage:'16GB',  price:5388  },
+  { d:'2010-07-30', short:'4',          name:'iPhone 4',             family:'standard', storage:'16GB',  price:4988  },
+  { d:'2011-11-11', short:'4S',         name:'iPhone 4S',            family:'standard', storage:'16GB',  price:5088  },
+  { d:'2012-09-21', short:'5',          name:'iPhone 5',             family:'standard', storage:'16GB',  price:5588  },
+  { d:'2013-09-20', short:'5c',         name:'iPhone 5c',            family:'standard', storage:'16GB',  price:4688  },
+  { d:'2013-09-20', short:'5s',         name:'iPhone 5s',            family:'standard', storage:'16GB',  price:5588  },
+  { d:'2014-09-19', short:'6',          name:'iPhone 6',             family:'standard', storage:'16GB',  price:5588  },
+  { d:'2014-09-19', short:'6 Plus',     name:'iPhone 6 Plus',        family:'plus',     storage:'16GB',  price:6388  },
+  { d:'2015-09-25', short:'6s',         name:'iPhone 6s',            family:'standard', storage:'16GB',  price:5588  },
+  { d:'2015-09-25', short:'6s Plus',    name:'iPhone 6s Plus',       family:'plus',     storage:'16GB',  price:6388  },
+  { d:'2016-03-31', short:'SE',         name:'iPhone SE (2016)',     family:'budget',   storage:'16GB',  price:3488  },
+  { d:'2016-09-16', short:'7',          name:'iPhone 7',             family:'standard', storage:'32GB',  price:5588  },
+  { d:'2016-09-16', short:'7 Plus',     name:'iPhone 7 Plus',        family:'plus',     storage:'32GB',  price:6588  },
+  { d:'2017-09-22', short:'8',          name:'iPhone 8',             family:'standard', storage:'64GB',  price:5988  },
+  { d:'2017-09-22', short:'8 Plus',     name:'iPhone 8 Plus',        family:'plus',     storage:'64GB',  price:6888  },
+  { d:'2017-11-03', short:'X',          name:'iPhone X',             family:'standard', storage:'64GB',  price:8588  },
+  { d:'2018-09-21', short:'XS',         name:'iPhone XS',            family:'standard', storage:'64GB',  price:8599  },
+  { d:'2018-09-21', short:'XS Max',     name:'iPhone XS Max',        family:'promax',   storage:'64GB',  price:9499  },
+  { d:'2018-10-26', short:'XR',         name:'iPhone XR',            family:'standard', storage:'64GB',  price:6499  },
+  { d:'2019-09-20', short:'11',         name:'iPhone 11',            family:'standard', storage:'64GB',  price:5999  },
+  { d:'2019-09-20', short:'11 Pro',     name:'iPhone 11 Pro',        family:'pro',      storage:'64GB',  price:8599  },
+  { d:'2019-09-20', short:'11 Pro Max', name:'iPhone 11 Pro Max',    family:'promax',   storage:'64GB',  price:9499  },
+  { d:'2020-04-24', short:'SE 2',       name:'iPhone SE (2020)',     family:'budget',   storage:'64GB',  price:3399  },
+  { d:'2020-10-23', short:'12',         name:'iPhone 12',            family:'standard', storage:'64GB',  price:6799  },
+  { d:'2020-10-23', short:'12 Pro',     name:'iPhone 12 Pro',        family:'pro',      storage:'128GB', price:8499  },
+  { d:'2020-11-13', short:'12 mini',    name:'iPhone 12 mini',       family:'mini',     storage:'64GB',  price:5999  },
+  { d:'2020-11-13', short:'12 Pro Max', name:'iPhone 12 Pro Max',    family:'promax',   storage:'128GB', price:9399  },
+  { d:'2021-09-24', short:'13 mini',    name:'iPhone 13 mini',       family:'mini',     storage:'128GB', price:5999  },
+  { d:'2021-09-24', short:'13',         name:'iPhone 13',            family:'standard', storage:'128GB', price:6799  },
+  { d:'2021-09-24', short:'13 Pro',     name:'iPhone 13 Pro',        family:'pro',      storage:'128GB', price:8499  },
+  { d:'2021-09-24', short:'13 Pro Max', name:'iPhone 13 Pro Max',    family:'promax',   storage:'128GB', price:9399  },
+  { d:'2022-03-18', short:'SE 3',       name:'iPhone SE (2022)',     family:'budget',   storage:'64GB',  price:3699  },
+  { d:'2022-09-16', short:'14',         name:'iPhone 14',            family:'standard', storage:'128GB', price:6899  },
+  { d:'2022-09-16', short:'14 Pro',     name:'iPhone 14 Pro',        family:'pro',      storage:'128GB', price:8599  },
+  { d:'2022-09-16', short:'14 Pro Max', name:'iPhone 14 Pro Max',    family:'promax',   storage:'128GB', price:9399  },
+  { d:'2022-10-07', short:'14 Plus',    name:'iPhone 14 Plus',       family:'plus',     storage:'128GB', price:7699  },
+  { d:'2023-09-22', short:'15',         name:'iPhone 15',            family:'standard', storage:'128GB', price:6899  },
+  { d:'2023-09-22', short:'15 Plus',    name:'iPhone 15 Plus',       family:'plus',     storage:'128GB', price:7699  },
+  { d:'2023-09-22', short:'15 Pro',     name:'iPhone 15 Pro',        family:'pro',      storage:'128GB', price:8599  },
+  { d:'2023-09-22', short:'15 Pro Max', name:'iPhone 15 Pro Max',    family:'promax',   storage:'256GB', price:9399  },
+  { d:'2024-09-20', short:'16',         name:'iPhone 16',            family:'standard', storage:'128GB', price:6899  },
+  { d:'2024-09-20', short:'16 Plus',    name:'iPhone 16 Plus',       family:'plus',     storage:'128GB', price:7699  },
+  { d:'2024-09-20', short:'16 Pro',     name:'iPhone 16 Pro',        family:'pro',      storage:'128GB', price:8599  },
+  { d:'2024-09-20', short:'16 Pro Max', name:'iPhone 16 Pro Max',    family:'promax',   storage:'256GB', price:9399  },
+  { d:'2025-02-28', short:'16e',        name:'iPhone 16e',           family:'budget',   storage:'128GB', price:5099  },
+  { d:'2025-09-19', short:'17',         name:'iPhone 17',            family:'standard', storage:'256GB', price:6899  },
+  { d:'2025-09-19', short:'17 Air',     name:'iPhone Air',           family:'air',      storage:'256GB', price:8599  },
+  { d:'2025-09-19', short:'17 Pro',     name:'iPhone 17 Pro',        family:'pro',      storage:'256GB', price:9399  },
+  { d:'2025-09-19', short:'17 Pro Max', name:'iPhone 17 Pro Max',    family:'promax',   storage:'256GB', price:10199 },
+  { d:'2026-03-11', short:'17e',        name:'iPhone 17e',           family:'budget',   storage:'256GB', price:5099  },
+  { d:'2026-09-18', short:'18 Pro',     name:'iPhone 18 Pro',        family:'pro',      storage:'256GB', price:10499 },
+  { d:'2026-09-18', short:'18 Pro Max', name:'iPhone 18 Pro Max',    family:'promax',   storage:'256GB', price:11499 },
+];
+
+const FAMILIES = [
+  { key:'budget',   label:'入門 SE · e', color:'#8e8e93' },
+  { key:'mini',     label:'迷你 mini',   color:'#af52de' },
+  { key:'standard', label:'標準',        color:'#0a84ff' },
+  { key:'plus',     label:'Plus',        color:'#30b0c7' },
+  { key:'air',      label:'Air',         color:'#ff9f0a' },
+  { key:'pro',      label:'Pro',         color:'#5e5ce6' },
+  { key:'promax',   label:'Pro Max',     color:'#2d2d72' },
+];
+const FAM_ORDER = Object.fromEntries(FAMILIES.map((f, i) => [f.key, i]));
+
+// 按年份：先按發售日，同日再按系列（Pro / Pro Max 永遠相鄰）
+const byYear = [...MODELS].sort((a, b) =>
+  a.d < b.d ? -1 : a.d > b.d ? 1 : FAM_ORDER[a.family] - FAM_ORDER[b.family]);
+// 按系列：先按系列，再按年份
+const byFamily = [...MODELS].sort((a, b) =>
+  FAM_ORDER[a.family] - FAM_ORDER[b.family] || (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
+
+const fmtHK = v => 'HK$' + v.toLocaleString('en-US');
+let currentView = 'year';
+let list = byYear;
+
+function render(view) {
+  currentView = view;
+  list = view === 'year' ? byYear : byFamily;
+  const cats = list.map(m => {
+    const yy = view === 'year' ? m.d.slice(2, 4) : m.d.slice(0, 4);
+    return yy + ' · ' + m.short + ' ' + m.storage;
+  });
+  const box = document.getElementById('chart');
+  box.style.height = (150 + list.length * 30) + 'px';
+  chart.setOption({
+    grid: { left: 8, right: 70, top: 46, bottom: 30, containLabel: true },
+    legend: { top: 0, type: 'scroll', textStyle: { fontSize: 11 } },
+    tooltip: {
+      trigger: 'axis', axisPointer: { type: 'shadow' },
+      formatter: ps => {
+        const m = list[ps[0].dataIndex];
+        return '<b>' + m.name + '</b> ' + m.storage +
+               '<br/>香港發售：' + m.d +
+               '<br/>售價：<b>' + fmtHK(m.price) + '</b>';
+      }
+    },
+    xAxis: {
+      type: 'value', max: 12500,
+      axisLabel: { fontSize: 10, color: '#6e6e73', formatter: v => '$' + (v / 1000) + 'k' },
+      splitLine: { lineStyle: { color: '#eee' } }
+    },
+    yAxis: {
+      type: 'category', inverse: true, data: cats,
+      axisLabel: { fontSize: 11, color: '#1d1d1f' },
+      axisTick: { show: false }, axisLine: { show: false }
+    },
+    series: FAMILIES.map(f => ({
+      name: f.label, type: 'bar',
+      itemStyle: { color: f.color, borderRadius: [0, 4, 4, 0] },
+      barCategoryGap: '35%',
+      label: {
+        show: true, position: 'right', fontSize: 10, color: '#515154',
+        formatter: p => p.value == null ? '' : fmtHK(p.value)
+      },
+      emphasis: { focus: 'series' },
+      data: list.map(m => m.family === f.key ? m.price : null)
+    }))
+  }, true);
+  document.getElementById('btnYear').classList.toggle('active', view === 'year');
+  document.getElementById('btnFamily').classList.toggle('active', view === 'family');
+}
+
+if (typeof echarts === 'undefined') {
+  document.getElementById('fallback').style.display = 'block';
+} else {
+  var chart = echarts.init(document.getElementById('chart'));
+  render('year');
+  document.getElementById('btnYear').addEventListener('click', () => render('year'));
+  document.getElementById('btnFamily').addEventListener('click', () => render('family'));
+  window.addEventListener('resize', () => chart.resize());
+}
+</script>
+</body>
+</html>
