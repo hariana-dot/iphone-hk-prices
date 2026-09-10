@@ -50,7 +50,7 @@
   .chips button.active { border-color: #0071e3; color: #0071e3; font-weight: 600; }
   body.dark .chips button.active { color: #0a84ff; }
   .chips .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
-  #chart { width: 100%; }
+  #chart { width: 100%; min-height: 300px; }
   #fallback { display: none; padding: 24px; text-align: center; color: #6e6e73; font-size: 14px; }
   #loading { padding: 48px 0; text-align: center; color: #6e6e73; font-size: 14px; }
   body.dark #loading { color: #98989d; }
@@ -203,16 +203,31 @@ function render() {
   const oldIdx = list.map(m => fullYears(m.d) >= 8);
   const box = document.getElementById('chart');
   box.style.height = (150 + list.length * (state.second ? 64 : 54)) + 'px';
+  chart.resize();
   const axisColor = dark ? '#f5f5f7' : '#1d1d1f';
   const gridColor = dark ? '#38383a' : '#eee';
   const priceColor = dark ? '#aeaeb2' : '#515154';
+  // 價錢白色嵌喺 bar 入面（label 錨定 bar 本體，唔會有高低唔齊）
+  const pxPer = ((chart.getWidth() || box.clientWidth || 360) - 122 - 78) / 13000;
+  const priceItem = v => {
+    const w = Math.floor(v * pxPer) - 16;
+    return {
+      value: v,
+      label: {
+        show: true, position: 'insideRight', distance: 6, fontSize: 10,
+        color: '#fff', fontWeight: 600,
+        width: Math.max(10, w), overflow: 'truncate',
+        formatter: fmtHK(v)
+      }
+    };
+  };
   const series = FAMILIES.map(f => ({
     name: f.label, type: 'bar',
     itemStyle: { color: dark ? f.darkColor : f.color, borderRadius: [0, 4, 4, 0] },
     barCategoryGap: '25%',
     label: { show: false },
     emphasis: { focus: 'series' },
-    data: list.map(m => m.family === f.key ? m.price : null)
+    data: list.map(m => m.family === f.key ? priceItem(m.price) : null)
   }));
   if (state.second) {
     series.push({
@@ -263,23 +278,6 @@ function render() {
     series: series
   };
   chart.setOption(option, true);
-  // 發售價寫喺 bar 尾出面（graphic 文字；endLabel 喺 ECharts 5.5 bar 唔 render）
-  try {
-    const children = [];
-    list.forEach((m, i) => {
-      const pt = chart.convertToPixel({ xAxisIndex: 0, yAxisIndex: 0 }, [m.price, cats[i]]);
-      if (!pt) return;
-      children.push({
-        type: 'text', silent: true,
-        position: [pt[0] + 5, pt[1]],
-        style: {
-          text: fmtHK(m.price), fontSize: 10, fill: priceColor,
-          verticalAlign: 'middle'
-        }
-      });
-    });
-    chart.setOption({ graphic: children });
-  } catch (e) {}
   document.getElementById('loading').style.display = 'none';
   document.getElementById('btnYear').classList.toggle('active', state.view === 'year');
   document.getElementById('btnFamily').classList.toggle('active', state.view === 'family');
@@ -323,10 +321,15 @@ if (typeof echarts === 'undefined') {
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
     if (state.theme === 'system') render();
   });
-  let rzT = null;
+  let rzT = null, lastW = window.innerWidth;
   window.addEventListener('resize', () => {
     clearTimeout(rzT);
-    rzT = setTimeout(() => { chart.resize(); render(); }, 150);
+    rzT = setTimeout(() => {
+      // 闊度冇變唔重畫（避開手機網址列縮放／截圖時高度變化觸發閃爍）
+      if (Math.abs(window.innerWidth - lastW) < 2) return;
+      lastW = window.innerWidth;
+      chart.resize(); render();
+    }, 150);
   });
   render();
 }
