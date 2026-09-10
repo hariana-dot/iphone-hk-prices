@@ -12,34 +12,69 @@
     margin: 0; padding: 16px 12px 40px; background: #fff; color: #1d1d1f;
     max-width: 860px; margin-left: auto; margin-right: auto;
   }
+  body.dark { background: #000; color: #f5f5f7; }
   h1 { font-size: 22px; margin: 4px 0 2px; }
   .sub { font-size: 13px; color: #6e6e73; margin: 0 0 12px; }
-  .controls { display: flex; gap: 8px; margin-bottom: 6px; }
+  body.dark .sub { color: #98989d; }
+  .theme {
+    position: fixed; top: 10px; right: 10px; z-index: 10;
+    display: flex; border-radius: 10px; overflow: hidden;
+    border: 1px solid #d2d2d7; background: #f5f5f7;
+  }
+  body.dark .theme { border-color: #38383a; background: #1c1c1e; }
+  .theme button {
+    border: 0; background: transparent; color: #1d1d1f;
+    font-size: 13px; padding: 7px 10px; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body.dark .theme button { color: #f5f5f7; }
+  .theme button.active { background: #0071e3; color: #fff; font-weight: 600; }
+  .controls { display: flex; gap: 8px; margin-bottom: 8px; }
   .controls button {
     flex: 1; padding: 10px 0; font-size: 15px; border-radius: 10px;
     border: 1px solid #d2d2d7; background: #f5f5f7; color: #1d1d1f;
     cursor: pointer; -webkit-tap-highlight-color: transparent;
   }
+  body.dark .controls button { border-color: #38383a; background: #1c1c1e; color: #f5f5f7; }
   .controls button.active { background: #0071e3; border-color: #0071e3; color: #fff; font-weight: 600; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+  .chips button {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 13px; padding: 6px 10px; border-radius: 999px;
+    border: 1px solid #d2d2d7; background: #fff; color: #1d1d1f;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  body.dark .chips button { border-color: #38383a; background: #1c1c1e; color: #f5f5f7; }
+  .chips button.active { border-color: #0071e3; color: #0071e3; font-weight: 600; }
+  body.dark .chips button.active { color: #0a84ff; }
+  .chips .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
   #chart { width: 100%; }
   #fallback { display: none; padding: 24px; text-align: center; color: #6e6e73; font-size: 14px; }
   .notes { font-size: 12px; color: #6e6e73; line-height: 1.7; margin-top: 14px; }
+  body.dark .notes { color: #98989d; }
   .notes b { color: #424245; }
+  body.dark .notes b { color: #d2d2d7; }
 </style>
 </head>
 <body>
+<div class="theme">
+  <button id="thLight">淺色</button><button id="thDark">深色</button><button id="thSystem">系統</button>
+</div>
 <h1>iPhone 香港發售價一覽</h1>
 <p class="sub">2008 – 2026 · 官方 SIM-free 淨機價（最低容量）· 港元 HK$</p>
 <div class="controls">
   <button id="btnYear" class="active">按年份</button>
   <button id="btnFamily">按系列</button>
+  <button id="btnSecond">二手價：關</button>
 </div>
+<div class="chips" id="chips"></div>
 <div id="chart"></div>
 <div id="fallback">圖表載入失敗，請檢查網絡連線後重新整理（需載入 ECharts CDN）。</div>
 <div class="notes">
   <b>說明：</b><br>
   · 價格為香港官方發售價（SIM-free 淨機、最低容量版本），上台合約價及之後的官方調價不計。<br>
   · 同代 Pro / Pro Max 相鄰排列；「按系列」可將全部 Pro / Pro Max 各自歸為一組，方便跨代比較。<br>
+  · 二手價為估算：同系列最新款發售價 × 0.7<sup>n</sup>（n = 足年數，上限 7；8 年或以上車款以<i>斜體</i>標示），只供參考，非市場實價。<br>
   · iPhone 2G 從未在港正式發售；摺疊屏iPhone Duo 暫未公佈香港官方定價，故未收錄。<br>
   · 資料來源：Apple 香港 newsroom 及當年香港傳媒紀錄（unwire / ePrice / DCFever / MobileMagazine 等）。
 </div>
@@ -103,82 +138,171 @@ const MODELS = [
 ];
 
 const FAMILIES = [
-  { key:'budget',   label:'入門 SE · e', color:'#8e8e93' },
-  { key:'mini',     label:'迷你 mini',   color:'#af52de' },
-  { key:'standard', label:'標準',        color:'#0a84ff' },
-  { key:'plus',     label:'Plus',        color:'#30b0c7' },
-  { key:'air',      label:'Air',         color:'#ff9f0a' },
-  { key:'pro',      label:'Pro',         color:'#5e5ce6' },
-  { key:'promax',   label:'Pro Max',     color:'#2d2d72' },
+  { key:'budget',   label:'入門 SE · e', color:'#8e8e93', darkColor:'#aeaeb2' },
+  { key:'mini',     label:'迷你 mini',   color:'#af52de', darkColor:'#bf5af2' },
+  { key:'standard', label:'標準',        color:'#0a84ff', darkColor:'#409cff' },
+  { key:'plus',     label:'Plus',        color:'#30b0c7', darkColor:'#40c8e0' },
+  { key:'air',      label:'Air',         color:'#ff9f0a', darkColor:'#ffb340' },
+  { key:'pro',      label:'Pro',         color:'#5e5ce6', darkColor:'#7d7aff' },
+  { key:'promax',   label:'Pro Max',     color:'#2d2d72', darkColor:'#8e8de0' },
 ];
 const FAM_ORDER = Object.fromEntries(FAMILIES.map((f, i) => [f.key, i]));
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-// 按年份：先按發售日，同日再按系列（Pro / Pro Max 永遠相鄰）
-const byYear = [...MODELS].sort((a, b) =>
-  a.d < b.d ? -1 : a.d > b.d ? 1 : FAM_ORDER[a.family] - FAM_ORDER[b.family]);
-// 按系列：先按系列，再按年份
-const byFamily = [...MODELS].sort((a, b) =>
-  FAM_ORDER[a.family] - FAM_ORDER[b.family] || (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
+const state = { view:'year', family:'all', second:false, theme:'system' };
+try {
+  const t = localStorage.getItem('iphk-theme');
+  if (t === 'light' || t === 'dark' || t === 'system') state.theme = t;
+} catch (e) {}
+
+function dateLabel(d) {
+  return '(' + d.slice(0, 4) + '-' + MON[parseInt(d.slice(5, 7), 10) - 1] + ')';
+}
+// 足年數：1年11個月都計 1 年
+function fullYears(d) {
+  const now = new Date();
+  let months = (now.getFullYear() - parseInt(d.slice(0, 4), 10)) * 12
+             + (now.getMonth() + 1 - parseInt(d.slice(5, 7), 10));
+  if (now.getDate() < parseInt(d.slice(8, 10), 10)) months--;
+  return Math.max(0, Math.floor(months / 12));
+}
+// 每個系列最新款發售價
+const LATEST = {};
+MODELS.forEach(m => {
+  if (!LATEST[m.family] || m.d > LATEST[m.family].d) LATEST[m.family] = m;
+});
+function secondPrice(m) {
+  const n = Math.min(fullYears(m.d), 7);
+  return Math.round(LATEST[m.family].price * Math.pow(0.7, n));
+}
 
 const fmtHK = v => 'HK$' + v.toLocaleString('en-US');
-let currentView = 'year';
-let list = byYear;
+const isDark = () => state.theme === 'dark' ||
+  (state.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
-function render(view) {
-  currentView = view;
-  list = view === 'year' ? byYear : byFamily;
-  const cats = list.map(m => {
-    const yy = view === 'year' ? m.d.slice(2, 4) : m.d.slice(0, 4);
-    return yy + ' · ' + m.short + ' ' + m.storage;
-  });
+function sortedList() {
+  let arr = MODELS.filter(m => state.family === 'all' || m.family === state.family);
+  const byDateDesc = (a, b) => a.d < b.d ? 1 : a.d > b.d ? -1 : FAM_ORDER[a.family] - FAM_ORDER[b.family];
+  if (state.view === 'year') return arr.sort(byDateDesc);
+  return arr.sort((a, b) => FAM_ORDER[a.family] - FAM_ORDER[b.family] || byDateDesc(a, b));
+}
+
+function render() {
+  const dark = isDark();
+  const list = sortedList();
+  const cats = list.map(m => dateLabel(m.d));
+  const oldIdx = list.map(m => fullYears(m.d) >= 8);
   const box = document.getElementById('chart');
-  box.style.height = (150 + list.length * 30) + 'px';
-  chart.setOption({
-    grid: { left: 8, right: 70, top: 46, bottom: 30, containLabel: true },
-    legend: { top: 0, type: 'scroll', textStyle: { fontSize: 11 } },
+  box.style.height = (120 + list.length * (state.second ? 34 : 30)) + 'px';
+  const axisColor = dark ? '#f5f5f7' : '#1d1d1f';
+  const gridColor = dark ? '#38383a' : '#eee';
+  const priceColor = dark ? '#aeaeb2' : '#515154';
+  const series = FAMILIES.map(f => ({
+    name: f.label, type: 'bar',
+    itemStyle: { color: dark ? f.darkColor : f.color, borderRadius: [0, 4, 4, 0] },
+    barCategoryGap: '35%',
+    // 二手開：bar 內嵌型號＋容量；二手關：右端標發售價
+    label: state.second ? {
+      show: true, position: 'insideLeft', fontSize: 10, color: '#fff', fontWeight: 600,
+      formatter: p => p.value == null ? '' : list[p.dataIndex].short + ' ' + list[p.dataIndex].storage
+    } : {
+      show: true, position: 'right', fontSize: 10, color: priceColor,
+      formatter: p => p.value == null ? '' : fmtHK(p.value)
+    },
+    emphasis: { focus: 'series' },
+    data: list.map(m => m.family === f.key ? m.price : null)
+  }));
+  if (state.second) {
+    series.push({
+      name: '二手價估算', type: 'bar',
+      itemStyle: { color: dark ? '#636366' : '#c7c7cc', borderRadius: [0, 4, 4, 0] },
+      label: {
+        show: true, position: 'right', fontSize: 10, color: priceColor,
+        formatter: p => p.value == null ? '' : fmtHK(p.value)
+      },
+      data: list.map(m => secondPrice(m))
+    });
+  }
+  // 有二手 bar 時：發售價 bar 內顯示型號＋容量，右端不重複標價
+  const option = {
+    backgroundColor: 'transparent',
+    grid: { left: 8, right: 70, top: 10, bottom: 30, containLabel: true },
     tooltip: {
       trigger: 'axis', axisPointer: { type: 'shadow' },
       formatter: ps => {
         const m = list[ps[0].dataIndex];
-        return '<b>' + m.name + '</b> ' + m.storage +
-               '<br/>香港發售：' + m.d +
-               '<br/>售價：<b>' + fmtHK(m.price) + '</b>';
+        let h = '<b>' + m.name + '</b> ' + m.storage +
+                '<br/>香港發售：' + m.d +
+                '<br/>發售價：<b>' + fmtHK(m.price) + '</b>';
+        if (state.second) {
+          const n = Math.min(fullYears(m.d), 7);
+          h += '<br/>二手估算：<b>' + fmtHK(secondPrice(m)) + '</b>' +
+               '（' + LATEST[m.family].name + ' ' + fmtHK(LATEST[m.family].price) +
+               ' × 0.7<sup>' + n + '</sup>）';
+        }
+        return h;
       }
     },
     xAxis: {
-      type: 'value', max: 12500,
-      axisLabel: { fontSize: 10, color: '#6e6e73', formatter: v => '$' + (v / 1000) + 'k' },
-      splitLine: { lineStyle: { color: '#eee' } }
+      type: 'value', max: 13000,
+      axisLabel: { fontSize: 10, color: dark ? '#98989d' : '#6e6e73', formatter: v => '$' + (v / 1000) + 'k' },
+      splitLine: { lineStyle: { color: gridColor } }
     },
     yAxis: {
       type: 'category', inverse: true, data: cats,
-      axisLabel: { fontSize: 11, color: '#1d1d1f' },
+      axisLabel: {
+        fontSize: 11, color: axisColor,
+        formatter: (v, i) => oldIdx[i] ? '{old|' + v + '}' : v,
+        rich: { old: { fontStyle: 'italic', color: axisColor } }
+      },
       axisTick: { show: false }, axisLine: { show: false }
     },
-    series: FAMILIES.map(f => ({
-      name: f.label, type: 'bar',
-      itemStyle: { color: f.color, borderRadius: [0, 4, 4, 0] },
-      barCategoryGap: '35%',
-      label: {
-        show: true, position: 'right', fontSize: 10, color: '#515154',
-        formatter: p => p.value == null ? '' : fmtHK(p.value)
-      },
-      emphasis: { focus: 'series' },
-      data: list.map(m => m.family === f.key ? m.price : null)
-    }))
-  }, true);
-  document.getElementById('btnYear').classList.toggle('active', view === 'year');
-  document.getElementById('btnFamily').classList.toggle('active', view === 'family');
+    series: series
+  };
+  chart.setOption(option, true);
+  document.getElementById('btnYear').classList.toggle('active', state.view === 'year');
+  document.getElementById('btnFamily').classList.toggle('active', state.view === 'family');
+  const bs = document.getElementById('btnSecond');
+  bs.classList.toggle('active', state.second);
+  bs.textContent = '二手價：' + (state.second ? '開' : '關');
+  document.querySelectorAll('#chips button').forEach(b =>
+    b.classList.toggle('active', b.dataset.fam === state.family));
+  document.getElementById('thLight').classList.toggle('active', state.theme === 'light');
+  document.getElementById('thDark').classList.toggle('active', state.theme === 'dark');
+  document.getElementById('thSystem').classList.toggle('active', state.theme === 'system');
+  document.body.classList.toggle('dark', dark);
+}
+
+function setTheme(t) {
+  state.theme = t;
+  try { localStorage.setItem('iphk-theme', t); } catch (e) {}
+  render();
 }
 
 if (typeof echarts === 'undefined') {
   document.getElementById('fallback').style.display = 'block';
 } else {
   var chart = echarts.init(document.getElementById('chart'));
-  render('year');
-  document.getElementById('btnYear').addEventListener('click', () => render('year'));
-  document.getElementById('btnFamily').addEventListener('click', () => render('family'));
+  // 系列篩選 chips（單選）
+  const chips = document.getElementById('chips');
+  [{ key:'all', label:'全部', color:'#0071e3' }, ...FAMILIES].forEach(f => {
+    const b = document.createElement('button');
+    b.dataset.fam = f.key;
+    b.innerHTML = '<span class="dot" style="background:' + f.color + '"></span>' + f.label;
+    b.addEventListener('click', () => { state.family = f.key; render(); });
+    chips.appendChild(b);
+  });
+  document.getElementById('btnYear').addEventListener('click', () => { state.view = 'year'; render(); });
+  document.getElementById('btnFamily').addEventListener('click', () => { state.view = 'family'; render(); });
+  document.getElementById('btnSecond').addEventListener('click', () => { state.second = !state.second; render(); });
+  document.getElementById('thLight').addEventListener('click', () => setTheme('light'));
+  document.getElementById('thDark').addEventListener('click', () => setTheme('dark'));
+  document.getElementById('thSystem').addEventListener('click', () => setTheme('system'));
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (state.theme === 'system') render();
+  });
   window.addEventListener('resize', () => chart.resize());
+  render();
 }
 </script>
 </body>
