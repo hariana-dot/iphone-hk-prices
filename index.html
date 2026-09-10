@@ -224,20 +224,29 @@ function render() {
     show: true, position: 'right', distance: 4, fontSize: 10,
     color: priceColor, formatter: p => p.value == null ? '' : fmtHK(p.value)
   };
-  const series = FAMILIES.map(f => ({
-    name: f.label, type: 'bar',
-    itemStyle: { color: dark ? f.darkColor : f.color, borderRadius: [0, 4, 4, 0] },
-    barCategoryGap: '25%',
+  const famColor = {};
+  FAMILIES.forEach(f => { famColor[f.key] = dark ? f.darkColor : f.color; });
+  // 發售價用單一 series（每條 bar 自己上色），唔好 7 條 series 並排，否則 bar 會飛高／沉低
+  const series = [{
+    name: '發售價', type: 'bar',
+    barGap: '-100%',
+    barWidth: state.second ? 16 : 20,
     label: endLabel,
-    emphasis: { focus: 'series' },
-    data: rows.map(r => (r.kind !== 'second' && r.m.family === f.key) ? r.m.price : null)
-  }));
+    data: rows.map(r => r.kind === 'second' ? null : ({
+      value: r.m.price,
+      itemStyle: { color: famColor[r.m.family], borderRadius: [0, 4, 4, 0] }
+    }))
+  }];
   if (state.second) {
     series.push({
       name: '二手價估算', type: 'bar',
-      itemStyle: { color: dark ? '#636366' : '#c7c7cc', borderRadius: [0, 4, 4, 0] },
+      barGap: '-100%',
+      barWidth: 16,
       label: endLabel,
-      data: rows.map(r => r.kind === 'second' ? secondPrice(r.m) : null)
+      data: rows.map(r => r.kind === 'second' ? ({
+        value: secondPrice(r.m),
+        itemStyle: { color: dark ? '#636366' : '#c7c7cc', borderRadius: [0, 4, 4, 0] }
+      }) : null)
     });
   }
   const option = {
@@ -269,20 +278,30 @@ function render() {
     },
     yAxis: {
       type: 'category', inverse: true, data: cats,
-      axisLabel: {
-        fontSize: 11, color: axisColor, lineHeight: 15,
-        align: 'left', margin: 124,
-        formatter: (v, i) => {
-          const t = rows[i] ? rows[i].label : v;
-          return oldIdx[i] ? '{old|' + t + '}' : t;
-        },
-        rich: { old: { fontStyle: 'italic', color: axisColor, lineHeight: 15, align: 'left' } }
-      },
+      axisLabel: { show: false },
       axisTick: { show: false }, axisLine: { show: false }
     },
     series: series
   };
   chart.setOption(option, true);
+  // y 軸文字用手畫 graphic，y = 該行 bar 中心，先對齊先準
+  const ylab = [];
+  rows.forEach((r, i) => {
+    const pt = chart.convertToPixel({ xAxisIndex: 0, yAxisIndex: 0 }, [0, cats[i]]);
+    if (!pt) return;
+    ylab.push({
+      type: 'text', id: 'yl' + i, silent: true, z: 10,
+      position: [6, pt[1]],
+      style: {
+        text: r.label,
+        fill: axisColor,
+        font: (oldIdx[i] ? 'italic ' : 'normal ') + '11px sans-serif',
+        textAlign: 'left',
+        textVerticalAlign: 'middle'
+      }
+    });
+  });
+  chart.setOption({ graphic: ylab });
   document.getElementById('loading').style.display = 'none';
   document.getElementById('btnYear').classList.toggle('active', state.view === 'year');
   document.getElementById('btnFamily').classList.toggle('active', state.view === 'family');
