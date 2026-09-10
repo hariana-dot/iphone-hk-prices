@@ -234,8 +234,9 @@ function render() {
       name: '二手價估算', type: 'bar',
       itemStyle: { color: dark ? '#636366' : '#c7c7cc', borderRadius: [0, 4, 4, 0] },
       label: {
-        show: true, position: 'right', distance: 4, fontSize: 10,
-        color: priceColor, formatter: p => p.value == null ? '' : fmtHK(p.value)
+        show: true, position: 'insideRight', distance: 6, fontSize: 10,
+        color: dark ? '#fff' : '#1d1d1f',
+        formatter: p => p.value == null ? '' : fmtHK(p.value)
       },
       data: list.map(m => secondPrice(m))
     });
