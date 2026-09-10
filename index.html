@@ -149,14 +149,14 @@ const FAMILIES = [
 const FAM_ORDER = Object.fromEntries(FAMILIES.map((f, i) => [f.key, i]));
 const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-const state = { view:'year', family:'all', second:false, theme:'system' };
+const state = { view:'year', family:'pro', second:false, theme:'system' };
 try {
   const t = localStorage.getItem('iphk-theme');
   if (t === 'light' || t === 'dark' || t === 'system') state.theme = t;
 } catch (e) {}
 
 function dateLabel(d) {
-  return '(' + d.slice(0, 4) + '-' + MON[parseInt(d.slice(5, 7), 10) - 1] + ')';
+  return d.slice(0, 4) + '-' + MON[parseInt(d.slice(5, 7), 10) - 1];
 }
 // 足年數：1年11個月都計 1 年
 function fullYears(d) {
@@ -193,40 +193,46 @@ function render() {
   const cats = list.map(m => dateLabel(m.d));
   const oldIdx = list.map(m => fullYears(m.d) >= 8);
   const box = document.getElementById('chart');
-  box.style.height = (120 + list.length * (state.second ? 34 : 30)) + 'px';
+  box.style.height = (150 + list.length * (state.second ? 52 : 44)) + 'px';
   const axisColor = dark ? '#f5f5f7' : '#1d1d1f';
   const gridColor = dark ? '#38383a' : '#eee';
   const priceColor = dark ? '#aeaeb2' : '#515154';
+  // 白色價錢嵌喺 bar 入面，太短先放出面（型號只喺 tooltip 顯示）
+  const pxPer = ((chart.getWidth() || box.clientWidth || 360) - 72 - 78) / 13000;
+  const priceItem = (v, insideColor) => {
+    if (v == null) return null;
+    const fit = v * pxPer > String(fmtHK(v)).length * 6 + 16;
+    return {
+      value: v,
+      label: {
+        show: true, position: fit ? 'insideRight' : 'right',
+        distance: fit ? 6 : 4, fontSize: 10,
+        color: fit ? insideColor : priceColor,
+        fontWeight: fit ? 600 : 400,
+        formatter: fmtHK(v)
+      }
+    };
+  };
   const series = FAMILIES.map(f => ({
     name: f.label, type: 'bar',
     itemStyle: { color: dark ? f.darkColor : f.color, borderRadius: [0, 4, 4, 0] },
-    barCategoryGap: '35%',
-    // 二手開：bar 內嵌型號＋容量；二手關：右端標發售價
-    label: state.second ? {
-      show: true, position: 'insideLeft', fontSize: 10, color: '#fff', fontWeight: 600,
-      formatter: p => p.value == null ? '' : list[p.dataIndex].short + ' ' + list[p.dataIndex].storage
-    } : {
-      show: true, position: 'right', fontSize: 10, color: priceColor,
-      formatter: p => p.value == null ? '' : fmtHK(p.value)
-    },
+    barCategoryGap: '30%',
+    label: { show: false },
     emphasis: { focus: 'series' },
-    data: list.map(m => m.family === f.key ? m.price : null)
+    data: list.map(m => m.family === f.key ? priceItem(m.price, '#fff') : null)
   }));
   if (state.second) {
     series.push({
       name: '二手價估算', type: 'bar',
       itemStyle: { color: dark ? '#636366' : '#c7c7cc', borderRadius: [0, 4, 4, 0] },
-      label: {
-        show: true, position: 'right', fontSize: 10, color: priceColor,
-        formatter: p => p.value == null ? '' : fmtHK(p.value)
-      },
-      data: list.map(m => secondPrice(m))
+      label: { show: false },
+      data: list.map(m => priceItem(secondPrice(m), dark ? '#fff' : '#333'))
     });
   }
   // 有二手 bar 時：發售價 bar 內顯示型號＋容量，右端不重複標價
   const option = {
     backgroundColor: 'transparent',
-    grid: { left: 8, right: 70, top: 10, bottom: 30, containLabel: true },
+    grid: { left: 72, right: 78, top: 10, bottom: 30, containLabel: false },
     tooltip: {
       trigger: 'axis', axisPointer: { type: 'shadow' },
       formatter: ps => {
