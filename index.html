@@ -221,6 +221,19 @@ function render() {
       }
     };
   };
+  // 二手價：fit 先放裡面，太短放出面（右）
+  const secondItem = v => {
+    const fit = v * pxPer > String(fmtHK(v)).length * 6 + 16;
+    return {
+      value: v,
+      label: {
+        show: true, position: fit ? 'insideRight' : 'right',
+        distance: fit ? 6 : 4, fontSize: 10,
+        color: fit ? (dark ? '#fff' : '#1d1d1f') : priceColor,
+        formatter: fmtHK(v)
+      }
+    };
+  };
   const series = FAMILIES.map(f => ({
     name: f.label, type: 'bar',
     itemStyle: { color: dark ? f.darkColor : f.color, borderRadius: [0, 4, 4, 0] },
@@ -233,12 +246,8 @@ function render() {
     series.push({
       name: '二手價估算', type: 'bar',
       itemStyle: { color: dark ? '#636366' : '#c7c7cc', borderRadius: [0, 4, 4, 0] },
-      label: {
-        show: true, position: 'insideRight', distance: 6, fontSize: 10,
-        color: dark ? '#fff' : '#1d1d1f',
-        formatter: p => p.value == null ? '' : fmtHK(p.value)
-      },
-      data: list.map(m => secondPrice(m))
+      label: { show: false },
+      data: list.map(m => secondItem(secondPrice(m)))
     });
   }
   const option = {
