@@ -16,8 +16,9 @@ achieves unattended Apple ID 2FA + Apple Pay checkout.
 ## Telegram (@iphone18hk_bot)
 1. Message the bot `/start` — you are auto-registered with default All/All/All/All
 2. `/watch` wizard: Model → Storage → Color → Pickup, multi-select taps, default All, tapping All clears other picks in that group (All-wins)
-3. Alerts fire only on matching in-stock; `/stock` shows matching now; `/mute` `/unmute` `/reset`
-4. Token lives in local `config.json` (gitignored) — commit only `config.example.json`
+3. Alerts fire once per variant when it flips out-of-stock → in-stock (all stores count as one pool; staying in-stock or going out-of-stock never alerts); `/stock` shows matching now; `/mute` `/unmute` `/reset`; `/pickup on|off` shows/hides store lists (hidden by default)
+4. Buy links open the pre-selected config in the browser (deleted Store app recommended); then tap: No trade-in → Continue → No AppleCare+ → Add to bag → pickup (trade-in/AppleCare can't be pre-linked)
+5. Token lives in local `config.json` (gitignored) — commit only `config.example.json`
 
 ## Release day 12/9/2026
 - PC never sleeps, start.bat running, dashboard open

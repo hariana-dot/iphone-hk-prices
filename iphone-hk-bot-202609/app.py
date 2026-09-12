@@ -72,8 +72,9 @@ def buy_url(label):
         size, storage.lower(), slug)
 
 
-def grouped_lines(hit_rows, cap=20):
-    """Collapse in-stock rows by variant: one line per model+storage+color with store shorts + Buy link."""
+def grouped_lines(hit_rows, cap=20, show_stores=True):
+    """Collapse in-stock rows by variant: one line per model+storage+color with Buy link
+    (store list included only if show_stores)."""
     by_part = {}
     order = []
     for r in hit_rows:
@@ -87,21 +88,24 @@ def grouped_lines(hit_rows, cap=20):
     lines = []
     for p in order[:cap]:
         e = by_part[p]
-        lines.append('%s — %s <a href="%s">Buy</a>' % (
-            e["label"], "/".join(e["stores"]), buy_url(e["label"])))
+        if show_stores:
+            lines.append('%s — %s <a href="%s">Buy</a>' % (
+                e["label"], "/".join(e["stores"]), buy_url(e["label"])))
+        else:
+            lines.append('%s <a href="%s">Buy</a>' % (e["label"], buy_url(e["label"])))
     if len(order) > cap:
         lines.append("…+%d more variants" % (len(order) - cap))
     return lines
 
 
-def format_alert(hit_rows, now, live):
+def format_alert(hit_rows, now, live, show_stores=True):
     if live:
-        head = "IN STOCK: %d combos (%s)" % (len(hit_rows), now)
+        head = "IN STOCK: %d new combos (%s)" % (len(hit_rows), now)
     else:
         head = "SAMPLE ALERT (test — not real stock)"
     return ("%s\nBuy opens the pre-selected config in your browser.\n"
-            "Checkout: No trade-in → No AppleCare+ → bag → pickup (store can't be pre-linked).\n\n%s\n\n"
-            "<a href=\"%s\">Open bag</a>" % (head, "\n".join(grouped_lines(hit_rows)), BAG))
+            "Then tap: No trade-in → Continue → No AppleCare+ → Add to bag → pickup.\n\n%s\n\n"
+            "<a href=\"%s\">Open bag</a>" % (head, "\n".join(grouped_lines(hit_rows, show_stores=show_stores)), BAG))
 
 WATCH = {}   # chat_id(str) -> {models:[],storages:[],colors:[],stores:[],muted:bool}
 DRAFT = {}   # chat_id(str) -> {step:int, models:set, storages:set, colors:set, stores:set}
@@ -132,12 +136,18 @@ def get_watch(cid):
     cid = str(cid)
     w = WATCH.get(cid)
     if not w:
-        w = {"models": [ALL], "storages": [ALL], "colors": [ALL], "stores": [ALL], "muted": False}
+        w = {"models": [ALL], "storages": [ALL], "colors": [ALL], "stores": [ALL],
+             "muted": False, "show_stores": False, "seen": {}}
         WATCH[cid] = w
         save_watch()
+        return w
     for k in ("models", "storages", "colors", "stores"):
         if not w.get(k):
             w[k] = [ALL]
+    if "show_stores" not in w:
+        w["show_stores"] = False
+    if "seen" not in w:
+        w["seen"] = {}
     return w
 
 
@@ -169,9 +179,10 @@ def fmt_sel(lst):
 
 def watch_summary(cid):
     w = get_watch(cid)
-    return ("Watch: Model[%s] Storage[%s] Color[%s] Pickup[%s]%s" % (
+    return ("Watch: Model[%s] Storage[%s] Color[%s] Pickup[%s] Stores:%s%s" % (
         fmt_sel(w["models"]), fmt_sel(w["storages"]),
         fmt_sel(w["colors"]), fmt_sel(w["stores"]),
+        "shown" if w.get("show_stores", False) else "hidden",
         " (MUTED)" if w.get("muted") else ""))
 
 
@@ -308,6 +319,7 @@ MAIN_KB = {"inline_keyboard": [
     [{"text": "🎯 Watch setup", "callback_data": "menu:watch"}],
     [{"text": "📦 Stock now", "callback_data": "menu:stock"}],
     [{"text": "🔕 Mute / 🔊 Unmute", "callback_data": "menu:mute"}],
+    [{"text": "📍 Stores shown/hidden", "callback_data": "menu:stores"}],
 ]}
 
 
@@ -316,7 +328,7 @@ def handle_text(cid, text):
     if text.startswith("/start"):
         get_watch(cid)
         tg_send(cid, "iPhone 18 HK bot on :9120.\n" + watch_summary(cid) +
-                "\n\n/start menu · /watch setup · /stock now · /mute /unmute · /reset", MAIN_KB)
+                "\n\n/start menu · /watch setup · /stock now · /mute /unmute · /reset · /pickup on|off", MAIN_KB)
     elif text.startswith("/watch"):
         start_draft(cid)
         tg_send(cid, draft_text(cid), kb_for_step(cid))
@@ -331,29 +343,71 @@ def handle_text(cid, text):
         save_watch()
         tg_send(cid, "Unmuted. " + watch_summary(cid))
     elif text.startswith("/reset"):
-        WATCH[str(cid)] = {"models": [ALL], "storages": [ALL], "colors": [ALL], "stores": [ALL], "muted": False}
+        WATCH[str(cid)] = {"models": [ALL], "storages": [ALL], "colors": [ALL], "stores": [ALL],
+                           "muted": False, "show_stores": False, "seen": {}}
         save_watch()
         tg_send(cid, "Reset to All. " + watch_summary(cid))
+    elif text.startswith("/pickup"):
+        w = get_watch(cid)
+        arg = text[len("/pickup"):].strip().lower()
+        if arg in ("on", "show", "yes"):
+            w["show_stores"] = True
+        elif arg in ("off", "hide", "no"):
+            w["show_stores"] = False
+        else:
+            w["show_stores"] = not w.get("show_stores", False)
+        save_watch()
+        tg_send(cid, ("Pickup locations shown. " if w["show_stores"] else "Pickup locations hidden. ") +
+                watch_summary(cid))
     else:
-        tg_send(cid, "Commands: /watch /stock /mute /unmute /reset", MAIN_KB)
+        tg_send(cid, "Commands: /watch /stock /mute /unmute /reset /pickup on|off", MAIN_KB)
 
 
-def send_grouped(hit_rows, now, live):
-    """One grouped message per watcher whose filter matches (respects mute). Returns recipients."""
-    sent = 0
-    for cid, w in list(WATCH.items()):
-        if w.get("muted"):
+LEGACY_SEEN = {}
+LEGACY_FILT = {"models": [ALL], "storages": [ALL], "colors": [ALL], "stores": [ALL]}
+
+
+def _flips_against(rows, filt, seen):
+    """Variant-level flip: part in-stock (under filt's store filter) now, but wasn't before.
+    All pickup locations count as one pool per variant. Updates seen."""
+    cur = {}
+    for r in rows:
+        if not match_row(filt, r):
             continue
-        mine = [r for r in hit_rows if match_row(w, r)]
-        if mine:
-            tg_send(cid, format_alert(mine, now, live), parse_mode="HTML", preview=False)
-            sent += 1
-    if sent == 0 and live:
+        cur.setdefault(r["part"], []).append(r)
+    flipped = []
+    for p, rs in cur.items():
+        if not seen.get(p):
+            flipped.extend(rs)
+    for p in list(seen):
+        if p not in cur:
+            seen[p] = False
+    for p in cur:
+        seen[p] = True
+    return flipped
+
+
+def send_flips(rows, now):
+    """One grouped message per watcher with newly-flipped variants (respects mute)."""
+    sent = 0
+    for cid in list(WATCH.keys()):
+        w = get_watch(cid)
+        flipped = _flips_against(rows, w, w.setdefault("seen", {}))
+        save_watch()
+        if not flipped or w.get("muted"):
+            continue
+        tg_send(cid, format_alert(flipped, now, True, w.get("show_stores", False)),
+                parse_mode="HTML", preview=False)
+        sent += 1
+    if sent == 0:
         # fallback to legacy single chat_id (pre-watch registration)
         legacy = str(CONFIG.get("telegram", {}).get("chat_id", ""))
         if legacy and legacy != "REPLACE_ME":
-            tg_send(legacy, format_alert(hit_rows, now, live), parse_mode="HTML", preview=False)
-            sent = 1
+            flipped = _flips_against(rows, LEGACY_FILT, LEGACY_SEEN)
+            if flipped:
+                tg_send(legacy, format_alert(flipped, now, True, True),
+                        parse_mode="HTML", preview=False)
+                sent = 1
     return sent
 
 
@@ -365,7 +419,7 @@ def send_stock_now(cid):
         tg_send(cid, "No matching in-stock now. (%d in-stock overall, last check %s)\n%s" % (
             n_all, STATE.get("last_check"), watch_summary(cid)))
         return
-    tg_send(cid, format_alert(rows, STATE.get("last_check"), True),
+    tg_send(cid, format_alert(rows, STATE.get("last_check"), True, w.get("show_stores", False)),
             parse_mode="HTML", preview=False)
 
 
@@ -384,6 +438,13 @@ def handle_callback(cid, data, cb_id, msg_id=None):
         w["muted"] = not w.get("muted")
         save_watch()
         tg_send(cid, ("Muted. " if w["muted"] else "Unmuted. ") + watch_summary(cid))
+        return
+    if data == "menu:stores":
+        w = get_watch(cid)
+        w["show_stores"] = not w.get("show_stores", False)
+        save_watch()
+        tg_send(cid, ("Pickup locations shown. " if w["show_stores"] else "Pickup locations hidden. ") +
+                watch_summary(cid))
         return
     if data.startswith("t:"):
         _, step, val = data.split(":", 2)
@@ -418,9 +479,11 @@ def handle_callback(cid, data, cb_id, msg_id=None):
         d = DRAFT.pop(cid, None)
         if not d:
             return
+        cur = get_watch(cid)
         WATCH[cid] = {"models": norm_all(sorted(d["models"])), "storages": norm_all(sorted(d["storages"])),
                       "colors": norm_all(sorted(d["colors"])), "stores": norm_all(sorted(d["stores"])),
-                      "muted": get_watch(cid).get("muted", False)}
+                      "muted": cur.get("muted", False), "show_stores": cur.get("show_stores", False),
+                      "seen": cur.get("seen", {})}
         save_watch()
         tg_send(cid, "Saved. " + watch_summary(cid) +
                 "\nYou will be alerted only on matching in-stock.", MAIN_KB)
@@ -563,22 +626,16 @@ def poll_loop():
                 STATE["fails"] = 0
                 STATE["error"] = None
                 STATE["rows"] = rows
-                new_hits = []
                 for r in rows:
-                    key = (r["part"], r["store"])
-                    old = PREV.get(key)
-                    if r["status"] == "in-stock" and old != "in-stock":
-                        new_hits.append(r)
-                    PREV[key] = r["status"]
-                if new_hits:
-                    print("IN STOCK %d combos (%s)" % (len(new_hits), now), flush=True)
+                    PREV[(r["part"], r["store"])] = r["status"]
+                n = send_flips(rows, now)
+                if n > 0:
+                    print("IN STOCK alert sent to %d watcher(s) (%s)" % (n, now), flush=True)
                     if CONFIG.get("open_browser_on_stock"):
                         try:
                             webbrowser.open(BAG)
                         except Exception:
                             pass
-                    if send_grouped(new_hits, now, True) == 0:
-                        print("in-stock but no watcher matches; skipped Telegram", flush=True)
                 LOG.parent.mkdir(exist_ok=True)
                 with open(LOG, "a", encoding="utf-8") as f:
                     f.write(json.dumps({"t": now, "rows": rows}) + "\n")
