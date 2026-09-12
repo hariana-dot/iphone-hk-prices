@@ -55,6 +55,54 @@ STEP_TITLE = {
     "store": "4/4 Pickup — tap to multi-select (default All)",
 }
 
+# ---- buy links (HK English store; slugs verified against page SKUs) ----
+URL_COLOR_SLUGS = {"Black": "black", "Silver": "silver", "Glacier": "glacier", "Burgundy": "burgundy"}
+STORE_SHORT = {"R428": "ifc", "R499": "Canton", "R409": "CWB",
+               "R485": "FestWalk", "R673": "apm", "R610": "NTP"}
+
+
+def buy_url(label):
+    """Pre-selected model+storage+color configure page (browser; Store app may drop the variant path)."""
+    model = "Pro Max" if "Pro Max" in label else "Pro"
+    storage = next((s for s in STORAGES if s in label), "")
+    color = next((c for c in COLORS if c in label), "")
+    size = "6.9" if model == "Pro Max" else "6.3"
+    slug = URL_COLOR_SLUGS.get(color, "")
+    return "https://www.apple.com/hk/shop/buy-iphone/iphone-18-pro/%s-inch-display-%s-%s" % (
+        size, storage.lower(), slug)
+
+
+def grouped_lines(hit_rows, cap=20):
+    """Collapse in-stock rows by variant: one line per model+storage+color with store shorts + Buy link."""
+    by_part = {}
+    order = []
+    for r in hit_rows:
+        if r["part"] not in by_part:
+            by_part[r["part"]] = {"label": r["label"], "stores": []}
+            order.append(r["part"])
+        code = store_code(r.get("store", ""))
+        short = STORE_SHORT.get(code, code)
+        if short not in by_part[r["part"]]["stores"]:
+            by_part[r["part"]]["stores"].append(short)
+    lines = []
+    for p in order[:cap]:
+        e = by_part[p]
+        lines.append('%s — %s <a href="%s">Buy</a>' % (
+            e["label"], "/".join(e["stores"]), buy_url(e["label"])))
+    if len(order) > cap:
+        lines.append("…+%d more variants" % (len(order) - cap))
+    return lines
+
+
+def format_alert(hit_rows, now, live):
+    if live:
+        head = "IN STOCK: %d combos (%s)" % (len(hit_rows), now)
+    else:
+        head = "SAMPLE ALERT (test — not real stock)"
+    return ("%s\nBuy opens the pre-selected config in your browser.\n"
+            "Checkout: No trade-in → No AppleCare+ → bag → pickup (store can't be pre-linked).\n\n%s\n\n"
+            "<a href=\"%s\">Open bag</a>" % (head, "\n".join(grouped_lines(hit_rows)), BAG))
+
 WATCH = {}   # chat_id(str) -> {models:[],storages:[],colors:[],stores:[],muted:bool}
 DRAFT = {}   # chat_id(str) -> {step:int, models:set, storages:set, colors:set, stores:set}
 
@@ -169,13 +217,16 @@ def tg_api(method, payload, timeout=20):
     return r.json() if r.headers.get("Content-Type", "").startswith("application/json") else {}
 
 
-def tg_send(cid, text, markup=None):
+def tg_send(cid, text, markup=None, parse_mode=None, preview=True):
     if not tg_enabled():
         return
     try:
-        payload = {"chat_id": cid, "text": text}
+        payload = {"chat_id": cid, "text": text,
+                   "disable_web_page_preview": not preview}
         if markup:
             payload["reply_markup"] = markup
+        if parse_mode:
+            payload["parse_mode"] = parse_mode
         tg_api("sendMessage", payload, timeout=15)
     except Exception as e:
         print("telegram failed:", e, flush=True)
@@ -287,6 +338,25 @@ def handle_text(cid, text):
         tg_send(cid, "Commands: /watch /stock /mute /unmute /reset", MAIN_KB)
 
 
+def send_grouped(hit_rows, now, live):
+    """One grouped message per watcher whose filter matches (respects mute). Returns recipients."""
+    sent = 0
+    for cid, w in list(WATCH.items()):
+        if w.get("muted"):
+            continue
+        mine = [r for r in hit_rows if match_row(w, r)]
+        if mine:
+            tg_send(cid, format_alert(mine, now, live), parse_mode="HTML", preview=False)
+            sent += 1
+    if sent == 0 and live:
+        # fallback to legacy single chat_id (pre-watch registration)
+        legacy = str(CONFIG.get("telegram", {}).get("chat_id", ""))
+        if legacy and legacy != "REPLACE_ME":
+            tg_send(legacy, format_alert(hit_rows, now, live), parse_mode="HTML", preview=False)
+            sent = 1
+    return sent
+
+
 def send_stock_now(cid):
     w = get_watch(cid)
     rows = [r for r in STATE.get("rows", []) if match_row(w, r)]
@@ -295,9 +365,8 @@ def send_stock_now(cid):
         tg_send(cid, "No matching in-stock now. (%d in-stock overall, last check %s)\n%s" % (
             n_all, STATE.get("last_check"), watch_summary(cid)))
         return
-    lines = ["%s @ %s" % (r["label"], r["store"]) for r in rows[:20]]
-    extra = "" if len(rows) <= 20 else "\n…+%d more" % (len(rows) - 20)
-    tg_send(cid, "IN STOCK %d matching:\n%s%s\n%s" % (len(rows), "\n".join(lines), extra, BAG))
+    tg_send(cid, format_alert(rows, STATE.get("last_check"), True),
+            parse_mode="HTML", preview=False)
 
 
 def handle_callback(cid, data, cb_id, msg_id=None):
@@ -494,21 +563,22 @@ def poll_loop():
                 STATE["fails"] = 0
                 STATE["error"] = None
                 STATE["rows"] = rows
+                new_hits = []
                 for r in rows:
                     key = (r["part"], r["store"])
                     old = PREV.get(key)
                     if r["status"] == "in-stock" and old != "in-stock":
-                        msg = "IN STOCK: %s @ %s (%s) %s" % (r["label"], r["store"], now, BAG)
-                        print(msg, flush=True)
-                        n = broadcast(msg, only_matching_row=r)
-                        if n == 0:
-                            print("in-stock but no watcher matches; skipped Telegram", flush=True)
-                        if CONFIG.get("open_browser_on_stock"):
-                            try:
-                                webbrowser.open(BAG)
-                            except Exception:
-                                pass
+                        new_hits.append(r)
                     PREV[key] = r["status"]
+                if new_hits:
+                    print("IN STOCK %d combos (%s)" % (len(new_hits), now), flush=True)
+                    if CONFIG.get("open_browser_on_stock"):
+                        try:
+                            webbrowser.open(BAG)
+                        except Exception:
+                            pass
+                    if send_grouped(new_hits, now, True) == 0:
+                        print("in-stock but no watcher matches; skipped Telegram", flush=True)
                 LOG.parent.mkdir(exist_ok=True)
                 with open(LOG, "a", encoding="utf-8") as f:
                     f.write(json.dumps({"t": now, "rows": rows}) + "\n")
