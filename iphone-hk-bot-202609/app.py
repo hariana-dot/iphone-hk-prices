@@ -11,6 +11,11 @@ from pathlib import Path
 
 import requests
 
+try:
+    from curl_cffi import requests as crequests  # Chrome TLS fingerprint (beats Akamai 541)
+except Exception:
+    crequests = None
+
 BASE = Path(__file__).parent
 CONFIG = json.loads((BASE / "config.json").read_text(encoding="utf-8"))
 PUBLIC = BASE / "public"
@@ -18,16 +23,47 @@ LOG = BASE / "logs" / "stock.ndjson"
 LOG.parent.mkdir(exist_ok=True)
 WATCH_FILE = BASE / "watch.json"
 
-STATE = {"last_check": None, "error": None, "fails": 0, "rows": []}
+STATE = {"last_check": None, "error": None, "fails": 0, "holding": False, "rows": []}
 PREV = {}
-SESSION = requests.Session()
-SESSION.headers.update({
-    "Accept": "application/json, text/plain, */*",
-    "X-AOS-UI-Fetch-Call-1": "true",
-    "X-Skip-Redirect": "true",
-    "Referer": "https://www.apple.com/hk/shop/buy-iphone/iphone-18-pro",
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-})
+# ---- anti-541: real Chrome TLS fingerprint via curl_cffi (Akamai flags
+# python-requests TLS + metronomic polling, esp. on pre-order day). UA pool
+# stays Chrome-124 to match the impersonated TLS. Session rebuilt regularly
+# and on every block so tracking cookies never get old.
+UA_POOL = [
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.119 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.119 Safari/537.36",
+]
+LANG_POOL = ["en-HK,en;q=0.9", "en-US,en;q=0.9", "zh-HK,zh;q=0.9,en;q=0.8", "zh-HK,zh;q=0.9,en;q=0.7"]
+
+
+def new_session():
+    if crequests is not None:
+        s = crequests.Session(impersonate="chrome124")
+    else:
+        s = requests.Session()
+    ua = random.choice(UA_POOL)
+    s.headers.update({
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": random.choice(LANG_POOL),
+        "X-AOS-UI-Fetch-Call-1": "true",
+        "X-Skip-Redirect": "true",
+        "Referer": "https://www.apple.com/hk/shop/buy-iphone/iphone-18-pro",
+        "User-Agent": ua,
+        "Sec-Fetch-Site": "same-origin",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Dest": "empty",
+    })
+    if "Chrome/" in ua and "Safari/" in ua:
+        s.headers["sec-ch-ua"] = '"Chromium";v="124", "Google Chrome";v="124", "Not=A?Brand";v="99"'
+        s.headers["sec-ch-ua-mobile"] = "?0"
+        s.headers["sec-ch-ua-platform"] = '"macOS"' if "Macintosh" in ua else '"Windows"'
+    return s
+
+
+SESSION = new_session()
+POLL_COUNT = 0
 
 API = "https://www.apple.com/hk/shop/retail/pickup-message"
 FALLBACK_API = "https://www.apple.com/hk/shop/fulfillment-messages"
@@ -521,21 +557,44 @@ def bot_loop():
             time.sleep(5)
 
 
+_HOLDING_MARKERS = ('"cv" : "preorder"', '"cv":"preorder"', "shldUrl", "refreshInterval")
+
+
+def is_preorder_holding(r):
+    """Apple serves HTTP 503 with its preorder shield page to every client
+    (real browsers included) until the store opens. Not an error — keep polling."""
+    if r.status_code != 503:
+        return False
+    try:
+        body = r.text
+    except Exception:
+        return False
+    return any(m in body for m in _HOLDING_MARKERS)
+
+
 def fetch_stock(parts):
+    """Returns (data, err, holding)."""
+    global SESSION
     params = [("parts.%d" % i, p) for i, p in enumerate(parts)]
     params += [("searchNearby", "true"), ("store", CONFIG.get("anchor_store", "R428"))]
     err = None
     for url in (API, FALLBACK_API):
-        try:
-            r = SESSION.get(url, params=params, timeout=20)
-            if r.status_code in (403, 429) or r.status_code == 541:
-                err = "%s: http %s" % (url, r.status_code)
-                continue
-            r.raise_for_status()
-            return r.json(), None
-        except Exception as e:
-            err = "%s: %s" % (url, e)
-    return None, err
+        for _attempt in (1, 2):
+            try:
+                r = SESSION.get(url, params=params, timeout=20)
+                if is_preorder_holding(r):
+                    return None, None, True  # store not open yet; do not back off
+                if r.status_code in (403, 429, 503) or r.status_code == 541:
+                    err = "%s: http %s" % (url, r.status_code)
+                    SESSION = new_session()  # fresh fingerprint before retry
+                    time.sleep(random.uniform(8, 15))
+                    continue
+                r.raise_for_status()
+                return r.json(), None, False
+            except Exception as e:
+                err = "%s: %s" % (url, e)
+                break
+    return None, err, False
 
 
 def parse_pickup_message(data, parts):
@@ -602,6 +661,7 @@ def parse(data, parts):
 
 
 def poll_loop():
+    global SESSION, POLL_COUNT
     backoff_until = 0
     while True:
         parts = [p for p in CONFIG["parts"] if not p.startswith("EXAMPLE")]
@@ -612,24 +672,39 @@ def poll_loop():
         if time.time() < backoff_until:
             time.sleep(5)
             continue
-        data, err = fetch_stock(parts)
+        data, err, holding = fetch_stock(parts)
         now = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
         STATE["last_check"] = now
-        if err or data is None:
+        if holding:
+            # Store not open yet — not our fault, don't alert or back off hard,
+            # so we catch the moment pre-orders go live.
+            STATE["holding"] = True
+            STATE["fails"] = 0
+            STATE["error"] = "Apple store holding (pre-order not open yet)"
+        elif err or data is None:
+            STATE["holding"] = False
             STATE["fails"] += 1
             STATE["error"] = err or "parse failed"
             n = STATE["fails"]
             if n == 5:
                 broadcast("HK bot: Apple API failing 5x in a row (%s)" % STATE["error"])
-            backoff_until = time.time() + min(2 ** min(n, 4) * 60, 8 * 60)
+            wait = min(2 ** min(n, 4) * 60, 8 * 60)
+            if any(k in STATE["error"] for k in ("541", "403", "429")):
+                wait = min(wait * 2, 15 * 60)  # Apple shield cooldown needs longer
+            backoff_until = time.time() + wait
         else:
             rows = parse(data, parts)
             if rows is None:
+                STATE["holding"] = False
                 STATE["fails"] += 1
                 STATE["error"] = "unexpected Apple response shape"
             else:
+                STATE["holding"] = False
                 STATE["fails"] = 0
                 STATE["error"] = None
+                POLL_COUNT += 1
+                if POLL_COUNT % 40 == 0:
+                    SESSION = new_session()  # rotate fingerprint while healthy
                 STATE["rows"] = rows
                 for r in rows:
                     PREV[(r["part"], r["store"])] = r["status"]
@@ -644,7 +719,10 @@ def poll_loop():
                 LOG.parent.mkdir(exist_ok=True)
                 with open(LOG, "a", encoding="utf-8") as f:
                     f.write(json.dumps({"t": now, "rows": rows}) + "\n")
-        time.sleep(CONFIG.get("interval_sec", 35) + random.uniform(-5, 5))
+        interval = CONFIG.get("interval_sec", 35) + random.uniform(-12, 12)
+        if holding:
+            interval = max(interval, 50)  # gentler while shielded, still catches the drop
+        time.sleep(interval)
 
 
 class H(BaseHTTPRequestHandler):

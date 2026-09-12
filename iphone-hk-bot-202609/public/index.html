@@ -12,9 +12,16 @@ table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:6p
 <label><input type="checkbox" id="snd" checked> beep on stock</label>
 <label>Filter: <select id="flt"><option value="all">All</option><option value="in-stock">In stock only</option><option value="pro">Pro only</option><option value="max">Pro Max only</option></select></label>
 </div>
-<table><thead><tr><th>Model</th><th>Store</th><th>Status</th></tr></thead><tbody id="b"></tbody></table>
+<table><thead><tr><th>Model</th><th>Store</th><th>Status</th><th>Buy</th></tr></thead><tbody id="b"></tbody></table>
 <script>
 let was=false;
+const STORAGES=['256GB','512GB','1TB','2TB'],COLORS=['Black','Silver','Burgundy','Glacier'];
+function buyUrl(label){
+const model=label.indexOf('Pro Max')>=0?'Pro Max':'Pro';
+const storage=STORAGES.find(s=>label.indexOf(s)>=0)||'';
+const color=COLORS.find(c=>label.indexOf(c)>=0)||'';
+const size=model==='Pro Max'?'6.9':'6.3';
+return 'https://www.apple.com/hk/shop/buy-iphone/iphone-18-pro/'+size+'-inch-display-'+storage.toLowerCase()+'-'+color.toLowerCase();}
 function pass(r){const f=document.getElementById('flt').value;
 if(f==='in-stock'&&r.status!=='in-stock')return false;
 if(f==='pro'&&r.label.indexOf('Pro Max')>=0)return false;
@@ -32,8 +39,13 @@ async function tick(){
       if(!pass(r))continue;
       const tr=document.createElement('tr');
       const c=r.status==='in-stock'?'in':(r.status==='out-of-stock'?'out':'unk');
-      tr.innerHTML='<td></td><td></td><td class="'+c+'"></td>';
+      tr.innerHTML='<td></td><td></td><td class="'+c+'"></td><td></td>';
       tr.children[0].textContent=r.label;tr.children[1].textContent=r.store;tr.children[2].textContent=r.status;
+      if(r.status==='in-stock'){
+        const a=document.createElement('a');
+        a.href=buyUrl(r.label);a.target='_blank';a.rel='noopener';a.textContent='Buy';
+        tr.children[3].appendChild(a);
+      }else{tr.children[3].textContent='-';}
       b.appendChild(tr);
     }
     if(hit&&!was&&document.getElementById('snd').checked){

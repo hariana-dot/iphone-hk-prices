@@ -31,3 +31,5 @@ achieves unattended Apple ID 2FA + Apple Pay checkout.
 - Uses HK English store only (apple.com/hk/shop), UTF-8 everywhere
 - Primary endpoint is pickup-message (works, tested); fulfillment-messages is fallback
 - Pre-order 8pm HKT Sept 12, on sale Sept 18, limit 2 Pro + 2 Pro Max per customer
+- **Anti-block:** Apple's Akamai shield returns HTTP 541 to `python-requests` (TLS fingerprint) ahead of pre-orders. Apple calls go through `curl_cffi` impersonating real Chrome 124; UA pool rotates, session is rebuilt every 40 healthy polls and after any 403/429/541, and poll jitter is ±12s. 403/429/541 back off up to 15 min.
+- **Pre-order holding:** until the store opens Apple serves HTTP 503 with its `cv:preorder` shield page to *every* client (real browsers included). The bot detects this, does not alert or count it as failure, keeps polling, and never backs off — so it catches the drop the moment pre-orders go live. Dashboard shows `Apple store holding (pre-order not open yet)`.
