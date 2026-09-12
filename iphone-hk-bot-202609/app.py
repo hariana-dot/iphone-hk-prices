@@ -325,6 +325,11 @@ MAIN_KB = {"inline_keyboard": [
 
 def handle_text(cid, text):
     text = (text or "").strip()
+    # group chats deliver commands as /cmd@BotName — strip the suffix
+    if text.startswith("/"):
+        head, sep, rest = text.partition(" ")
+        head = head.split("@", 1)[0]
+        text = head + (sep + rest if sep else "")
     if text.startswith("/start"):
         get_watch(cid)
         tg_send(cid, "iPhone 18 HK bot on :9120.\n" + watch_summary(cid) +

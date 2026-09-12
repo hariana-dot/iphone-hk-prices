@@ -19,6 +19,7 @@ achieves unattended Apple ID 2FA + Apple Pay checkout.
 3. Alerts fire once per variant when it flips out-of-stock → in-stock (all stores count as one pool; staying in-stock or going out-of-stock never alerts); `/stock` shows matching now; `/mute` `/unmute` `/reset`; `/pickup on|off` shows/hides store lists (hidden by default)
 4. Buy links open the pre-selected config in the browser (deleted Store app recommended); then tap: No trade-in → Continue → No AppleCare+ → Add to bag → pickup (trade-in/AppleCare can't be pre-linked)
 5. Token lives in local `config.json` (gitignored) — commit only `config.example.json`
+6. Groups: works if you add the bot to a group (one shared filter per group, commands + buttons fine), but each friend is better off starting their own chat with the bot so everyone keeps a personal filter; BotFather `/setprivacy` → DISABLE if the group should hear non-command chatter (not needed today)
 
 ## Release day 12/9/2026
 - PC never sleeps, start.bat running, dashboard open
