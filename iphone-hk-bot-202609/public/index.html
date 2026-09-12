@@ -1,0 +1,50 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>iPhone HK Stock</title>
+<style>body{font-family:system-ui,sans-serif;max-width:900px;margin:24px auto;padding:0 16px}
+table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:6px 8px;text-align:left}
+.in{color:#0a0;font-weight:700}.out{color:#888}.unk{color:#c80}
+.toolbar{display:flex;gap:16px;align-items:center;margin:12px 0}</style></head>
+<body>
+<h1>iPhone 18 Pro / Pro Max - HK Stock</h1>
+<p>Last checked: <span id="t">-</span> <span id="e"></span></p>
+<div class="toolbar">
+<label><input type="checkbox" id="snd" checked> beep on stock</label>
+<label>Filter: <select id="flt"><option value="all">All</option><option value="in-stock">In stock only</option><option value="pro">Pro only</option><option value="max">Pro Max only</option></select></label>
+</div>
+<table><thead><tr><th>Model</th><th>Store</th><th>Status</th></tr></thead><tbody id="b"></tbody></table>
+<script>
+let was=false;
+function pass(r){const f=document.getElementById('flt').value;
+if(f==='in-stock'&&r.status!=='in-stock')return false;
+if(f==='pro'&&r.label.indexOf('Pro Max')>=0)return false;
+if(f==='max'&&r.label.indexOf('Pro Max')<0)return false;
+return true;}
+async function tick(){
+  try{
+    const s=await (await fetch('/api/status')).json();
+    document.getElementById('t').textContent=s.last_check||'-';
+    document.getElementById('e').textContent=s.error?(' - '+s.error):'';
+    const b=document.getElementById('b');b.innerHTML='';
+    let hit=false;
+    for(const r of (s.rows||[])){
+      if(r.status==='in-stock')hit=true;
+      if(!pass(r))continue;
+      const tr=document.createElement('tr');
+      const c=r.status==='in-stock'?'in':(r.status==='out-of-stock'?'out':'unk');
+      tr.innerHTML='<td></td><td></td><td class="'+c+'"></td>';
+      tr.children[0].textContent=r.label;tr.children[1].textContent=r.store;tr.children[2].textContent=r.status;
+      b.appendChild(tr);
+    }
+    if(hit&&!was&&document.getElementById('snd').checked){
+      const a=new AudioContext(),o=a.createOscillator(),g=a.createGain();
+      o.connect(g);g.connect(a.destination);o.start();g.gain.setValueAtTime(0.3,a.currentTime);
+      o.stop(a.currentTime+0.8);
+    }
+    was=hit;
+  }catch(e){}
+}
+document.getElementById('flt').onchange=tick;
+setInterval(tick,10000);tick();
+</script>
+</body></html>

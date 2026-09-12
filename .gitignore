@@ -1,3 +1,7 @@
 .DS_Store
 Thumbs.db
 *.log
+iphone-hk-bot-202609/config.json
+iphone-hk-bot-202609/watch.json
+iphone-hk-bot-202609/logs/*.ndjson
+iphone-hk-bot-202609/__pycache__/
