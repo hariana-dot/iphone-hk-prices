@@ -65,11 +65,14 @@
   <button id="thLight">淺色</button><button id="thDark">深色</button><button id="thSystem">系統</button>
 </div>
 <h1>iPhone 香港發售價一覽</h1>
-<p class="sub">2008 – 2026 · 官方 SIM-free 淨機價（最低容量）· 港元 HK$</p>
+<p class="sub" id="sub">2008 – 2026 · 官方 SIM-free 淨機價（最低容量）· 港元 HK$</p>
+<div class="controls">
+  <button id="tabLaunch" class="active">新機發售價</button>
+  <button id="tabTrade">豐澤二手價</button>
+</div>
 <div class="controls">
   <button id="btnYear" class="active">按年份</button>
   <button id="btnFamily">按系列</button>
-  <button id="btnSecond">二手價：關</button>
 </div>
 <div class="chips" id="chips"></div>
 <div id="chart"></div>
@@ -77,11 +80,12 @@
 <div id="fallback">圖表載入失敗，請檢查網絡連線後重新整理（需載入 ECharts CDN）。</div>
 <div class="notes">
   <b>說明：</b><br>
-  · 價格為香港官方發售價（SIM-free 淨機、最低容量版本），上台合約價及之後的官方調價不計。<br>
-  · 同代 Pro / Pro Max 相鄰排列；「按系列」可將全部 Pro / Pro Max 各自歸為一組，方便跨代比較。<br>
-  · 二手價為估算：同系列最新款發售價 × 0.7<sup>n</sup>（n = 足年數，上限 7；8 年或以上車款以<i>斜體</i>標示），只供參考，非市場實價。<br>
+  · 新機發售價為香港官方發售價（SIM-free 淨機、最低容量版本），上台合約價及之後的官方調價不計。<br>
+  · 同代 Pro / Pro Max 相鄰排列；「按系列」可將全部 Pro / Pro Max 各自歸為一組，方便跨代比較；發售超過 8 年嘅型號以<i>斜體</i>標示。<br>
+  · 豐澤二手價為 2026-09-18 即時報價（fortress-go-green.com 以舊換新）：每部機狀況全選「良好」＋「只有舊機回收」，即最左邊基本回收價；共 120 個容量組合，17 Pro Max 2TB 官方暫無報價。<br>
+  · 非港版 iPhone 8 / 8 Plus 以容量區間（up to 64 / 256GB）報價；港版 128GB 另有獨立報價，已合併顯示。<br>
   · iPhone 2G 從未在港正式發售；摺疊屏iPhone Duo 暫未公佈香港官方定價，故未收錄。<br>
-  · 資料來源：Apple 香港 newsroom 及當年香港傳媒紀錄（unwire / ePrice / DCFever / MobileMagazine 等）。
+  · 資料來源：Apple 香港 newsroom 及當年香港傳媒紀錄（unwire / ePrice / DCFever / MobileMagazine 等）；二手價來源：FORTRESS 豐澤 Trade-in。
 </div>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js" onerror="document.getElementById('fallback').style.display='block';document.getElementById('loading').style.display='none'"></script>
 <script>
@@ -142,6 +146,132 @@ const MODELS = [
   { d:'2026-09-18', short:'18 Pro Max', name:'iPhone 18 Pro Max',    family:'promax',   storage:'256GB', price:11499 },
 ];
 
+// TRADE = 豐澤 Trade-in 回收價（完美機況・只有舊機回收，2026-09-18 實測）
+// name 對應 MODELS 嘅 name；t = 回收價 (HK$)；c = Fortress productCode
+// 17 Pro Max 2TB 官方暫無報價，故未收錄
+const TRADE = [
+  { name:'iPhone 11', storage:'128GB', t:900, c:11917818 },
+  { name:'iPhone 11', storage:'256GB', t:950, c:11917957 },
+  { name:'iPhone 11', storage:'64GB', t:700, c:11917754 },
+  { name:'iPhone 11 Pro', storage:'256GB', t:950, c:11918247 },
+  { name:'iPhone 11 Pro', storage:'512GB', t:1000, c:11918280 },
+  { name:'iPhone 11 Pro', storage:'64GB', t:900, c:11918204 },
+  { name:'iPhone 11 Pro Max', storage:'256GB', t:1090, c:11918546 },
+  { name:'iPhone 11 Pro Max', storage:'512GB', t:1160, c:11918589 },
+  { name:'iPhone 11 Pro Max', storage:'64GB', t:950, c:11918503 },
+  { name:'iPhone 12', storage:'128GB', t:910, c:12110207 },
+  { name:'iPhone 12', storage:'256GB', t:1100, c:12110258 },
+  { name:'iPhone 12', storage:'64GB', t:900, c:12110151 },
+  { name:'iPhone 12 Pro', storage:'128GB', t:1150, c:12110451 },
+  { name:'iPhone 12 Pro', storage:'256GB', t:1250, c:12110493 },
+  { name:'iPhone 12 Pro', storage:'512GB', t:1400, c:12110531 },
+  { name:'iPhone 12 Pro Max', storage:'128GB', t:1510, c:12110573 },
+  { name:'iPhone 12 Pro Max', storage:'256GB', t:1680, c:12110611 },
+  { name:'iPhone 12 Pro Max', storage:'512GB', t:1790, c:12110653 },
+  { name:'iPhone 12 mini', storage:'128GB', t:770, c:12110354 },
+  { name:'iPhone 12 mini', storage:'256GB', t:870, c:12110400 },
+  { name:'iPhone 12 mini', storage:'64GB', t:660, c:12110303 },
+  { name:'iPhone 13', storage:'128GB', t:1220, c:12495231 },
+  { name:'iPhone 13', storage:'256GB', t:1380, c:12495282 },
+  { name:'iPhone 13', storage:'512GB', t:1530, c:12495338 },
+  { name:'iPhone 13 Pro', storage:'128GB', t:1700, c:12495071 },
+  { name:'iPhone 13 Pro', storage:'1TB', t:2280, c:12495194 },
+  { name:'iPhone 13 Pro', storage:'256GB', t:1950, c:12495119 },
+  { name:'iPhone 13 Pro', storage:'512GB', t:2130, c:12495151 },
+  { name:'iPhone 13 Pro Max', storage:'128GB', t:2100, c:12494917 },
+  { name:'iPhone 13 Pro Max', storage:'1TB', t:2680, c:12495039 },
+  { name:'iPhone 13 Pro Max', storage:'256GB', t:2350, c:12494950 },
+  { name:'iPhone 13 Pro Max', storage:'512GB', t:2500, c:12494992 },
+  { name:'iPhone 13 mini', storage:'128GB', t:970, c:12495389 },
+  { name:'iPhone 13 mini', storage:'256GB', t:1120, c:12495434 },
+  { name:'iPhone 13 mini', storage:'512GB', t:1270, c:12495485 },
+  { name:'iPhone 14', storage:'128GB', t:1530, c:12749852 },
+  { name:'iPhone 14', storage:'256GB', t:1690, c:12749908 },
+  { name:'iPhone 14', storage:'512GB', t:1880, c:12749959 },
+  { name:'iPhone 14 Plus', storage:'128GB', t:1720, c:12750001 },
+  { name:'iPhone 14 Plus', storage:'256GB', t:1930, c:12750052 },
+  { name:'iPhone 14 Plus', storage:'512GB', t:2130, c:12750108 },
+  { name:'iPhone 14 Pro', storage:'128GB', t:2300, c:12749692 },
+  { name:'iPhone 14 Pro', storage:'1TB', t:3060, c:12749810 },
+  { name:'iPhone 14 Pro', storage:'256GB', t:2630, c:12749730 },
+  { name:'iPhone 14 Pro', storage:'512GB', t:2820, c:12749772 },
+  { name:'iPhone 14 Pro Max', storage:'128GB', t:2850, c:12749537 },
+  { name:'iPhone 14 Pro Max', storage:'1TB', t:3600, c:12749650 },
+  { name:'iPhone 14 Pro Max', storage:'256GB', t:3210, c:12749570 },
+  { name:'iPhone 14 Pro Max', storage:'512GB', t:3380, c:12749617 },
+  { name:'iPhone 15', storage:'128GB', t:2250, c:13095951 },
+  { name:'iPhone 15', storage:'256GB', t:2500, c:13096005 },
+  { name:'iPhone 15', storage:'512GB', t:2700, c:13096056 },
+  { name:'iPhone 15 Plus', storage:'128GB', t:2420, c:13095803 },
+  { name:'iPhone 15 Plus', storage:'256GB', t:2690, c:13095854 },
+  { name:'iPhone 15 Plus', storage:'512GB', t:2930, c:13095900 },
+  { name:'iPhone 15 Pro', storage:'128GB', t:3150, c:13095643 },
+  { name:'iPhone 15 Pro', storage:'1TB', t:3950, c:13095766 },
+  { name:'iPhone 15 Pro', storage:'256GB', t:3450, c:13095686 },
+  { name:'iPhone 15 Pro', storage:'512GB', t:3700, c:13095723 },
+  { name:'iPhone 15 Pro Max', storage:'1TB', t:4900, c:13095601 },
+  { name:'iPhone 15 Pro Max', storage:'256GB', t:4050, c:13095521 },
+  { name:'iPhone 15 Pro Max', storage:'512GB', t:4310, c:13095563 },
+  { name:'iPhone 16', storage:'128GB', t:3200, c:13490053 },
+  { name:'iPhone 16', storage:'256GB', t:3600, c:13490109 },
+  { name:'iPhone 16', storage:'512GB', t:3790, c:13490192 },
+  { name:'iPhone 16 Plus', storage:'128GB', t:3650, c:13490205 },
+  { name:'iPhone 16 Plus', storage:'256GB', t:3800, c:13490256 },
+  { name:'iPhone 16 Plus', storage:'512GB', t:4140, c:13490301 },
+  { name:'iPhone 16 Pro', storage:'128GB', t:4250, c:13490352 },
+  { name:'iPhone 16 Pro', storage:'1TB', t:5630, c:13490475 },
+  { name:'iPhone 16 Pro', storage:'256GB', t:4900, c:13490395 },
+  { name:'iPhone 16 Pro', storage:'512GB', t:5210, c:13490432 },
+  { name:'iPhone 16 Pro Max', storage:'1TB', t:6700, c:13490598 },
+  { name:'iPhone 16 Pro Max', storage:'256GB', t:5500, c:13490512 },
+  { name:'iPhone 16 Pro Max', storage:'512GB', t:6100, c:13490555 },
+  { name:'iPhone 16e', storage:'128GB', t:2150, c:13817917 },
+  { name:'iPhone 16e', storage:'256GB', t:2450, c:13817925 },
+  { name:'iPhone 16e', storage:'512GB', t:2900, c:13817933 },
+  { name:'iPhone 17', storage:'256GB', t:4600, c:13991860 },
+  { name:'iPhone 17', storage:'512GB', t:5370, c:13991915 },
+  { name:'iPhone 17 Pro', storage:'1TB', t:8200, c:13992221 },
+  { name:'iPhone 17 Pro', storage:'256GB', t:6250, c:13992109 },
+  { name:'iPhone 17 Pro', storage:'512GB', t:7300, c:13992176 },
+  { name:'iPhone 17 Pro Max', storage:'1TB', t:8900, c:13992310 },
+  { name:'iPhone 17 Pro Max', storage:'256GB', t:7000, c:13992256 },
+  { name:'iPhone 17 Pro Max', storage:'512GB', t:7900, c:13992281 },
+  { name:'iPhone 17e', storage:'256GB', t:3120, c:14077818 },
+  { name:'iPhone 17e', storage:'512GB', t:4070, c:14077826 },
+  { name:'iPhone 7', storage:'128GB', t:120, c:11568873 },
+  { name:'iPhone 7', storage:'256GB', t:80, c:11568929 },
+  { name:'iPhone 7', storage:'32GB', t:140, c:11568865 },
+  { name:'iPhone 7 Plus', storage:'128GB', t:180, c:11568304 },
+  { name:'iPhone 7 Plus', storage:'256GB', t:130, c:11568401 },
+  { name:'iPhone 7 Plus', storage:'32GB', t:80, c:11568283 },
+  { name:'iPhone 8', storage:'128GB', t:150, c:11917447 },
+  { name:'iPhone 8', storage:'256GB', t:290, c:11677084 },
+  { name:'iPhone 8', storage:'64GB', t:210, c:11676840 },
+  { name:'iPhone 8 Plus', storage:'128GB', t:320, c:11917471 },
+  { name:'iPhone 8 Plus', storage:'256GB', t:290, c:11677113 },
+  { name:'iPhone 8 Plus', storage:'64GB', t:170, c:11676874 },
+  { name:'iPhone Air', storage:'1TB', t:5350, c:13992045 },
+  { name:'iPhone Air', storage:'256GB', t:4600, c:13991966 },
+  { name:'iPhone Air', storage:'512GB', t:5000, c:13992002 },
+  { name:'iPhone SE (2020)', storage:'128GB', t:370, c:11998996 },
+  { name:'iPhone SE (2020)', storage:'256GB', t:450, c:11999059 },
+  { name:'iPhone SE (2020)', storage:'64GB', t:290, c:11998961 },
+  { name:'iPhone SE (2022)', storage:'128GB', t:730, c:12637658 },
+  { name:'iPhone SE (2022)', storage:'256GB', t:850, c:12637682 },
+  { name:'iPhone SE (2022)', storage:'64GB', t:600, c:12637607 },
+  { name:'iPhone X', storage:'256GB', t:350, c:11677130 },
+  { name:'iPhone X', storage:'64GB', t:350, c:11676891 },
+  { name:'iPhone XR', storage:'128GB', t:600, c:11798290 },
+  { name:'iPhone XR', storage:'256GB', t:650, c:11798353 },
+  { name:'iPhone XR', storage:'64GB', t:500, c:11798628 },
+  { name:'iPhone XS', storage:'256GB', t:530, c:11798556 },
+  { name:'iPhone XS', storage:'512GB', t:500, c:11798581 },
+  { name:'iPhone XS', storage:'64GB', t:400, c:11798521 },
+  { name:'iPhone XS Max', storage:'256GB', t:730, c:11798441 },
+  { name:'iPhone XS Max', storage:'512GB', t:800, c:11798476 },
+  { name:'iPhone XS Max', storage:'64GB', t:570, c:11798417 },
+];
+
 const FAMILIES = [
   { key:'budget',   label:'入門 SE · e', color:'#8e8e93', darkColor:'#aeaeb2' },
   { key:'mini',     label:'迷你 mini',   color:'#af52de', darkColor:'#bf5af2' },
@@ -154,7 +284,7 @@ const FAMILIES = [
 const FAM_ORDER = Object.fromEntries(FAMILIES.map((f, i) => [f.key, i]));
 const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-const state = { view:'year', family:'pro', second:false, theme:'system' };
+const state = { view:'year', family:'all', tab:'launch', theme:'system' };
 try {
   const t = localStorage.getItem('iphk-theme');
   if (t === 'light' || t === 'dark' || t === 'system') state.theme = t;
@@ -173,15 +303,6 @@ function fullMonths(d) {
 function fullYears(d) {
   return Math.floor(fullMonths(d) / 12);
 }
-// 每個系列最新款發售價
-const LATEST = {};
-MODELS.forEach(m => {
-  if (!LATEST[m.family] || m.d > LATEST[m.family].d) LATEST[m.family] = m;
-});
-function secondPrice(m) {
-  const n = Math.min(fullYears(m.d), 7);
-  return Math.round(LATEST[m.family].price * Math.pow(0.7, n));
-}
 
 const fmtHK = v => 'HK$' + v.toLocaleString('en-US');
 const isDark = () => state.theme === 'dark' ||
@@ -194,85 +315,95 @@ function sortedList() {
   return arr.sort((a, b) => FAM_ORDER[a.family] - FAM_ORDER[b.family] || byDateDesc(a, b));
 }
 
+const BYNAME = Object.fromEntries(MODELS.map(m => [m.name, m]));
+function storGB(s) {
+  const mm = s.match(/(\d+)(GB|TB)/);
+  if (!mm) return 0;
+  return parseInt(mm[1], 10) * (mm[2] === 'TB' ? 1024 : 1);
+}
+function tradeList() {
+  const arr = TRADE.filter(t => {
+    const m = BYNAME[t.name];
+    return m && (state.family === 'all' || m.family === state.family);
+  });
+  const byDateDesc = (a, b) => {
+    const ma = BYNAME[a.name], mb = BYNAME[b.name];
+    if (ma.d !== mb.d) return ma.d < mb.d ? 1 : -1;
+    if (ma.family !== mb.family) return FAM_ORDER[ma.family] - FAM_ORDER[mb.family];
+    return storGB(a.storage) - storGB(b.storage);
+  };
+  if (state.view === 'year') return arr.sort(byDateDesc);
+  return arr.sort((a, b) => FAM_ORDER[BYNAME[a.name].family] - FAM_ORDER[BYNAME[b.name].family] || byDateDesc(a, b));
+}
+function datLabel(d) {
+  return '(' + MON[parseInt(d.slice(5, 7), 10) - 1] + d.slice(0, 4) + ')';
+}
+
 function render() {
   const dark = isDark();
-  const models = sortedList();
-  // 二手開：每部機拆兩行（型號行＋容量行），兩條 bar 各自對齊自己行；
-  // 二手關：每部機一行（兩行 label）
+  const isTrade = state.tab === 'trade';
+  const famColor = {};
+  FAMILIES.forEach(f => { famColor[f.key] = dark ? f.darkColor : f.color; });
+  // 每個 entry 一行：發售價 tab 每部機一行，二手 tab 每個容量一行
   const rows = [];
-  models.forEach(m => {
-    const dat = '(' + MON[parseInt(m.d.slice(5, 7), 10) - 1] + m.d.slice(0, 4) + ')';
-    if (state.second) {
-      rows.push({ m, kind: 'launch', label: m.name });
-      rows.push({ m, kind: 'second', label: m.storage + ' ' + dat });
-    } else {
-      rows.push({ m, kind: 'both', label: m.name + '\n' + m.storage + ' ' + dat });
-    }
-  });
-  // 用 unique index 做 category，避免 全部 頁「256GB (Sep2026)」撞名合併成同一行
+  if (!isTrade) {
+    sortedList().forEach(m => {
+      rows.push({
+        label: m.name + '\n' + m.storage + ' ' + datLabel(m.d),
+        value: m.price, color: famColor[m.family],
+        italic: fullYears(m.d) >= 8,
+        tip: '<b>' + m.name + '</b> ' + m.storage +
+             '<br/>香港發售：' + m.d +
+             '<br/>發售價：<b>' + fmtHK(m.price) + '</b>'
+      });
+    });
+  } else {
+    tradeList().forEach(t => {
+      const m = BYNAME[t.name];
+      rows.push({
+        label: t.name + '\n' + t.storage + ' ' + datLabel(m.d),
+        value: t.t, color: famColor[m.family], italic: false,
+        tip: '<b>' + t.name + '</b> ' + t.storage +
+             '<br/>豐澤回收價：<b>' + fmtHK(t.t) + '</b>' +
+             '<br/>完美機況・只有舊機回收（2026-09-18 實測）' +
+             '<br/>Fortress 編號：' + t.c
+      });
+    });
+  }
+  // 用 unique index 做 category，避免 全部 頁同名行合併
   const cats = rows.map((_, i) => String(i));
-  const oldIdx = rows.map(r => fullYears(r.m.d) >= 8);
   const box = document.getElementById('chart');
-  box.style.height = (150 + rows.length * (state.second ? 40 : 54)) + 'px';
+  box.style.height = (150 + rows.length * (isTrade ? 30 : 54)) + 'px';
   chart.resize();
   const axisColor = dark ? '#f5f5f7' : '#1d1d1f';
   const gridColor = dark ? '#38383a' : '#eee';
   const priceColor = dark ? '#aeaeb2' : '#515154';
-  // 價錢一律放 bar 尾出面（verified：ECharts 5.5 嘅 bar 內白字定位唔可靠；
-  // 拆行後每條 bar 仍然準確對齊自己嗰行：發售價↔型號行，二手↔容量行）
+  // 價錢一律放 bar 尾出面（verified：ECharts 5.5 嘅 bar 內白字定位唔可靠）
   const endLabel = {
     show: true, position: 'right', distance: 4, fontSize: 10,
     color: priceColor, formatter: p => p.value == null ? '' : fmtHK(p.value)
   };
-  const famColor = {};
-  FAMILIES.forEach(f => { famColor[f.key] = dark ? f.darkColor : f.color; });
-  // 發售價用單一 series（每條 bar 自己上色），唔好 7 條 series 並排，否則 bar 會飛高／沉低
+  // 單一 series（每條 bar 自己上色），唔好多條 series 並排，否則 bar 會飛高／沉低
   const series = [{
-    name: '發售價', type: 'bar',
+    name: isTrade ? '豐澤回收價' : '發售價', type: 'bar',
     barGap: '-100%',
-    barWidth: state.second ? 16 : 20,
+    barWidth: isTrade ? 14 : 20,
     label: endLabel,
-    data: rows.map(r => r.kind === 'second' ? null : ({
-      value: r.m.price,
-      itemStyle: { color: famColor[r.m.family], borderRadius: [0, 4, 4, 0] }
+    data: rows.map(r => ({
+      value: r.value,
+      itemStyle: { color: r.color, borderRadius: [0, 4, 4, 0] }
     }))
   }];
-  if (state.second) {
-    series.push({
-      name: '二手價估算', type: 'bar',
-      barGap: '-100%',
-      barWidth: 16,
-      label: endLabel,
-      data: rows.map(r => r.kind === 'second' ? ({
-        value: secondPrice(r.m),
-        itemStyle: { color: dark ? '#636366' : '#c7c7cc', borderRadius: [0, 4, 4, 0] }
-      }) : null)
-    });
-  }
   const option = {
     backgroundColor: 'transparent',
     animation: false,
     grid: { left: 128, right: 78, top: 10, bottom: 30, containLabel: false },
     tooltip: {
       trigger: 'axis', axisPointer: { type: 'shadow' },
-      formatter: ps => {
-        const m = rows[ps[0].dataIndex].m;
-        let h = '<b>' + m.name + '</b> ' + m.storage +
-                '<br/>香港發售：' + m.d +
-                '<br/>發售價：<b>' + fmtHK(m.price) + '</b>';
-        if (state.second) {
-          const n = Math.min(fullYears(m.d), 7);
-          const mo = fullMonths(m.d);
-          h += '<br/>二手估算：<b>' + fmtHK(secondPrice(m)) + '</b>' +
-               '（已發售 ' + Math.floor(mo / 12) + ' 年 ' + (mo % 12) + ' 個月；' +
-               LATEST[m.family].name + ' ' + fmtHK(LATEST[m.family].price) +
-               ' × 0.7<sup>' + n + '</sup>）';
-        }
-        return h;
-      }
+      formatter: ps => rows[ps[0].dataIndex].tip
     },
     xAxis: {
-      type: 'value', max: 13000,
+      type: 'value', max: isTrade ? 10000 : 13000,
       axisLabel: { fontSize: 10, color: dark ? '#98989d' : '#6e6e73', formatter: v => '$' + (v / 1000) + 'k' },
       splitLine: { lineStyle: { color: gridColor } }
     },
@@ -295,7 +426,7 @@ function render() {
       style: {
         text: r.label,
         fill: axisColor,
-        font: (oldIdx[i] ? 'italic ' : 'normal ') + '11px sans-serif',
+        font: (r.italic ? 'italic ' : 'normal ') + '11px sans-serif',
         textAlign: 'left',
         textVerticalAlign: 'middle'
       }
@@ -305,9 +436,11 @@ function render() {
   document.getElementById('loading').style.display = 'none';
   document.getElementById('btnYear').classList.toggle('active', state.view === 'year');
   document.getElementById('btnFamily').classList.toggle('active', state.view === 'family');
-  const bs = document.getElementById('btnSecond');
-  bs.classList.toggle('active', state.second);
-  bs.textContent = '二手價：' + (state.second ? '開' : '關');
+  document.getElementById('tabLaunch').classList.toggle('active', !isTrade);
+  document.getElementById('tabTrade').classList.toggle('active', isTrade);
+  document.getElementById('sub').textContent = isTrade
+    ? '豐澤 Trade-in 回收報價（完美機況・舊機回收）· 2026-09-18 實測 · 港元 HK$'
+    : '2008 – 2026 · 官方 SIM-free 淨機價（最低容量）· 港元 HK$';
   document.querySelectorAll('#chips button').forEach(b =>
     b.classList.toggle('active', b.dataset.fam === state.family));
   document.getElementById('thLight').classList.toggle('active', state.theme === 'light');
@@ -336,9 +469,10 @@ if (typeof echarts === 'undefined') {
     b.addEventListener('click', () => { state.family = f.key; render(); });
     chips.appendChild(b);
   });
+  document.getElementById('tabLaunch').addEventListener('click', () => { state.tab = 'launch'; render(); });
+  document.getElementById('tabTrade').addEventListener('click', () => { state.tab = 'trade'; render(); });
   document.getElementById('btnYear').addEventListener('click', () => { state.view = 'year'; render(); });
   document.getElementById('btnFamily').addEventListener('click', () => { state.view = 'family'; render(); });
-  document.getElementById('btnSecond').addEventListener('click', () => { state.second = !state.second; render(); });
   document.getElementById('thLight').addEventListener('click', () => setTheme('light'));
   document.getElementById('thDark').addEventListener('click', () => setTheme('dark'));
   document.getElementById('thSystem').addEventListener('click', () => setTheme('system'));

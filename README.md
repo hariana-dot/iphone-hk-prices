@@ -4,10 +4,10 @@ iPhone 香港歷代發售價 bar chart（2008–2026）。
 
 單一 `index.html`，用 ECharts（CDN）畫橫向 bar chart，手機 Safari 直接開到睇：
 
-- 預設由新到舊排列，預設只顯示 Pro 系列；y 軸兩行顯示型號＋容量（年月），例如 `iPhone 17 Pro` / `256GB (Sep2025)`；價錢標喺 bar 尾出面
+- 預設由新到舊排列，預設顯示全部系列；y 軸兩行顯示型號＋容量（年月），例如 `iPhone 17 Pro` / `256GB (Sep2025)`；價錢標喺 bar 尾出面
 - **按年份 / 按系列**：按系列將全部 Pro 歸一組、全部 Pro Max 歸一組，方便跨代比較
 - **系列篩選** chips：只睇某一系列（例如只睇 Pro）
-- **二手價** toggle：同系列最新款 × 0.7ⁿ（n = 按月份計足年數，上限 7；8 年或以上車款斜體；tooltip 顯示已發售年＋月）
+- **新機發售價 / 豐澤二手價** tabs：二手 tab 為 2026-09-18 豐澤 Trade-in 即時報價（完美機況・只有舊機回收），每個容量一行，共 120 個組合
 - 右上角**淺色 / 深色 / 系統**主題切換（記住選擇）
 
 ## 價格基準
@@ -23,4 +23,5 @@ iPhone 2G 從未在港正式發售；摺疊屏iPhone Duo 暫未公佈香港官�
 ## 資料來源
 
 Apple 香港 newsroom 及當年香港傳媒紀錄（unwire.hk、ePrice.HK、DCFever、MobileMagazine 等），2026-09 核實。
+二手價來源：FORTRESS 豐澤 Trade-in（fortress-go-green.com，2026-09-18 實測，完美機況・舊機回收基本價）。
 個別早期型號以 Apple HK 網上商店淨機價為準（3G 時代初為 3HK 上台，後有淨機價）。
