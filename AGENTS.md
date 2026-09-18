@@ -21,6 +21,7 @@ iphone-hk-prices/
 
 - 所有價格資料只放喺 `index.html` 頂部 `MODELS` array（d = 香港發售日，price = HK$ 官方淨機最低容量發售價）。
 - 豐澤二手價放喺 `TRADE` array（name 對應 MODELS 嘅 name，t = 回收價，c = Fortress productCode；2026-09-18 實測，完美機況・舊機回收）。
+- 官方各容量發售價放喺 `TIERS` dict（key = MODELS 嘅 name；未列出嘅舊型號用 base tier fallback；`state.storage` 預設 256GB）。
 - 加新型號：喺 `MODELS` 加一行，兩個排序（byYear / byFamily）會自動處理；Pro / Pro Max 同代自動相鄰。
 - 改完用瀏覽器開 `index.html` 睇 render + 撳「按系列」掣驗證。
 - Commit message 用英文短句。
